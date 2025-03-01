@@ -19,6 +19,7 @@ class ViewController: UIViewController {
     var recordedFiles: [URL] = []
     
     let transcriber = AssemblyAITranscriber(apiKey: "")
+    let translator = DeepLTranslator(apiKey: "")
     let elevenLabsAPI = ElevenLabsAPI(apiKey: "")
        var elevenLabsAudioFileURL: URL?
     
@@ -46,11 +47,13 @@ class ViewController: UIViewController {
     func setupAudioSession() {
         let session = AVAudioSession.sharedInstance()
         do {
-            try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
-            try session.setActive(true)
-        } catch {
-            print("Failed to setup audio session:", error)
-        }
+            try session.setCategory(.playAndRecord, mode: .default, options: [.allowBluetooth, .allowBluetoothA2DP])
+                try session.setActive(true)
+                print("✅ Audio session configured for Bluetooth playback.")
+            }
+            catch{
+                print("❌ Failed to setup audio session:", error)
+            }
     }
     
     func getDocumentsDirectory() -> URL {
@@ -114,21 +117,41 @@ class ViewController: UIViewController {
                 }
             }
         }
-        
-        func requestTranscription(for uploadedURL: String) {
-            transcriber.requestTranscription(audioFileURL: uploadedURL, languageCode: "en_us") { [weak self] result in
-                switch result {
-                case .success(let transcription):
-                    print("Transcription completed: \(transcription)")
-                    DispatchQueue.main.async {
-                        self?.updateTranscriptionTextView(with:transcription)
-                        self?.generateAudioFromTranscription(transcription)
-                    }
-                case .failure(let error):
-                    print("Error during transcription: \(error)")
+    
+    
+    func requestTranscription(for uploadedURL: String) {
+        transcriber.requestTranscription(audioFileURL: uploadedURL) { [weak self] result in
+            switch result {
+            case .success(let transcription):
+                print("Transcription completed: \(transcription)")
+                DispatchQueue.main.async {
+                    // Translate the transcription before sending it to Eleven Labs
+                    self?.translateAndGenerateAudio(transcription)
                 }
+            case .failure(let error):
+                print("Error during transcription: \(error)")
             }
         }
+    }
+    
+    
+    func translateAndGenerateAudio(_ originalText: String) {
+        let targetLanguage = "EN-US" // Change to desired language code 
+
+        translator.translateText(originalText, targetLang: targetLanguage) { [weak self] result in
+            switch result {
+            case .success(let translatedText):
+                print("Translation completed: \(translatedText)")
+                DispatchQueue.main.async {
+                    self?.updateTranscriptionTextView(with: translatedText)
+                    self?.generateAudioFromTranscription(translatedText) // Send to Eleven Labs
+                }
+            case .failure(let error):
+                print("Error during translation: \(error)")
+            }
+        }
+    }
+
         
     func updateTranscriptionTextView(with transcription: String) {
            transcriptionTextView.text = transcription
@@ -161,10 +184,14 @@ class ViewController: UIViewController {
             }
             
             do {
+                setupAudioSession() // ✅ Ensure Bluetooth is configured
                 audioPlayer = try AVAudioPlayer(contentsOf: elevenLabsAudioFileURL)
+                audioPlayer?.prepareToPlay()
                 audioPlayer?.play()
-            } catch {
-                print("Failed to play Eleven Labs audio:", error)
+                print("✅ Playing Eleven Labs audio through JBL (if connected).")
+            }
+            catch {
+                print("❌ Failed to play Eleven Labs audio:", error)
             }
         }
     
@@ -175,10 +202,14 @@ class ViewController: UIViewController {
         }
         
         do {
+            setupAudioSession() // ✅ Ensure Bluetooth output before playing
             audioPlayer = try AVAudioPlayer(contentsOf: lastRecording)
+            audioPlayer?.prepareToPlay()
             audioPlayer?.play()
+            print("✅ Playing audio through JBL (if connected).")
         } catch {
-            print("Failed to play audio:", error)
+            print("❌ Failed to play audio:", error)
         }
+
     }
 }

@@ -55,7 +55,7 @@ class AssemblyAITranscriber {
     }
     
     // Request transcription from AssemblyAI
-    func requestTranscription(audioFileURL: String, languageCode: String = "en", completion: @escaping (Result<String, Error>) -> Void) {
+    func requestTranscription(audioFileURL: String, completion: @escaping (Result<String, Error>) -> Void) {
         let endpoint = "https://api.assemblyai.com/v2/transcript"
         
         var request = URLRequest(url: URL(string: endpoint)!)
@@ -63,7 +63,10 @@ class AssemblyAITranscriber {
         request.addValue(apiKey, forHTTPHeaderField: "Authorization")
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         
-        let parameters = ["audio_url": audioFileURL, "language_code": languageCode]
+        let parameters: [String: Any] = [
+            "audio_url": audioFileURL,
+            "language_detection": true, // Enables ALD
+        ]
         
         request.httpBody = try? JSONSerialization.data(withJSONObject: parameters, options: [])
         
