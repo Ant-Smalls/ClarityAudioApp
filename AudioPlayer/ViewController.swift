@@ -3,8 +3,6 @@
 //  AudioPlayer
 //
 //  Created by Anthony Smaldore on 12/6/24.
-//
-
 
 import UIKit
 import AVFoundation
@@ -14,7 +12,7 @@ import SwiftUI
 
 class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlayerDelegate {
     
-    // Properties
+    // MARK: - Properties
     var audioRecorder: AVAudioRecorder?
     var audioPlayer: AVAudioPlayer?
     var isRecording = false
@@ -22,12 +20,12 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
     var recordingCount = 1
     var recordedFiles: [URL] = []
     
-    // Dynamic Language Selection
-    var inputLanguage: String = "en-US" // Default, will be set dynamically
-    var outputLanguage: String = "es" // Default, will be set dynamically
-    var finalTranscriptionText: String = ""  // ✅ Stores the full transcription
-    var finalTranslatedText: String = ""     // ✅ Stores only the translation
-
+    // Dynamic language selections.
+    var inputLanguage: String = "en-US"
+    var outputLanguage: String = "es"
+    var finalTranscriptionText: String = ""
+    var finalTranslatedText: String = ""
+    
     var speechRecognizer: SFSpeechRecognizer?
     var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     var recognitionTask: SFSpeechRecognitionTask?
@@ -38,34 +36,47 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
     
     var elevenLabsAudioFileURL: URL?
     
-    // UI Elements
+    // Gradient layer property.
+    var gradientLayer: CAGradientLayer?
+    
+    // MARK: - UI Elements (Connected via Storyboard)
     @IBOutlet weak var recordButton: UIButton!
     @IBOutlet weak var stopRecordButton: UIButton!
     @IBOutlet weak var transcriptionTextView: UITextView!
     @IBOutlet weak var translationTextView: UITextView!
     @IBOutlet weak var playTranslatedAudioButton: UIButton!
     
+    // MARK: - Lifecycle Methods
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .white
+        applyGradientBackground()
         setupAudioSession()
         requestSpeechPermission()
+        styleUI()
         
-        // Update UI for selected languages
-        stopRecordButton.isHidden = true
+        // Set initial button states.
+        recordButton.alpha = 1
+        stopRecordButton.alpha = 0
+        
         print("✅ Using Input Language: \(inputLanguage), Output Language: \(outputLanguage)")
+    }
+    
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        // Ensure the gradient layer covers the entire view.
+        gradientLayer?.frame = view.bounds
     }
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        print("✅ ViewController appeared successfully!") // Debugging statement
+        print("✅ ViewController appeared successfully!")
     }
     
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         print("⚠️ ViewController is disappearing, cleaning up translation tasks.")
-
-        // ✅ Remove any existing SwiftUI hosting controller
+        
+        // Remove any embedded SwiftUI TranslationView.
         for child in children {
             if let hostingController = child as? UIHostingController<TranslationView> {
                 hostingController.willMove(toParent: nil)
@@ -73,20 +84,70 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
                 hostingController.removeFromParent()
             }
         }
-
-        // ✅ Stop any ongoing translations
         self.finalTranslatedText = ""
     }
-
-
     
+    // MARK: - Gradient Background Setup
+    func applyGradientBackground() {
+        let gradient = CAGradientLayer()
+        gradient.colors = [
+            UIColor(hex: "#23252c").cgColor,
+            UIColor(hex: "#40607e").cgColor,
+            UIColor(hex: "#584d78").cgColor
+        ]
+        gradient.startPoint = CGPoint(x: 0, y: 0)
+        gradient.endPoint = CGPoint(x: 1, y: 1)
+        gradient.frame = view.bounds
+        view.layer.insertSublayer(gradient, at: 0)
+        gradientLayer = gradient
+    }
+    
+    // MARK: - UI Styling
+    func styleUI() {
+        // Set a modern, clean font for buttons.
+        let buttonFont = UIFont.systemFont(ofSize: 16, weight: .medium)
+        recordButton.titleLabel?.font = buttonFont
+        stopRecordButton.titleLabel?.font = buttonFont
+        playTranslatedAudioButton.titleLabel?.font = buttonFont
+        
+        // Style record button.
+        recordButton.backgroundColor = UIColor(hex: "#40607e")
+        recordButton.setTitleColor(.white, for: .normal)
+        recordButton.layer.cornerRadius = 8
+        
+        // Style stop record button.
+        stopRecordButton.backgroundColor = UIColor(hex: "#40607e")
+        stopRecordButton.setTitleColor(.white, for: .normal)
+        stopRecordButton.layer.cornerRadius = 8
+        
+        // Style play translated audio button.
+        playTranslatedAudioButton.backgroundColor = UIColor(hex: "#40607e")
+        playTranslatedAudioButton.setTitleColor(.white, for: .normal)
+        playTranslatedAudioButton.layer.cornerRadius = 8
+        
+        // Style transcription text view.
+        transcriptionTextView.backgroundColor = UIColor(hex: "#584d78")
+        transcriptionTextView.textColor = .white
+        transcriptionTextView.font = UIFont.systemFont(ofSize: 16, weight: .regular)
+        transcriptionTextView.layer.cornerRadius = 8
+        transcriptionTextView.clipsToBounds = true
+        
+        // Style translation text view.
+        translationTextView.backgroundColor = UIColor(hex: "#584d78")
+        translationTextView.textColor = .white
+        translationTextView.font = UIFont.systemFont(ofSize: 16, weight: .regular)
+        translationTextView.layer.cornerRadius = 8
+        translationTextView.clipsToBounds = true
+    }
+    
+    // MARK: - Speech Recognition Setup
     func requestSpeechPermission() {
         SFSpeechRecognizer.requestAuthorization { status in
             DispatchQueue.main.async {
                 switch status {
                 case .authorized:
                     print("✅ Speech recognition authorized.")
-                    self.recordButton?.isEnabled = true // ✅ Use optional chaining
+                    self.recordButton?.isEnabled = true
                 case .denied:
                     print("❌ User denied speech recognition.")
                     self.recordButton?.isEnabled = false
@@ -99,8 +160,6 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
             }
         }
     }
-
-
     
     func setupAudioSession() {
         let session = AVAudioSession.sharedInstance()
@@ -112,47 +171,39 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
         }
     }
     
+    // MARK: - Recording Actions
     @IBAction func handleRecord() {
         if !audioEngine.isRunning {
             startRealTimeTranscription()
-
-            // ✅ Hide "Record Audio" button and show "Stop Recording"
-            recordButton.isHidden = true
-            stopRecordButton.isHidden = false
+            UIView.animate(withDuration: 0.3) {
+                self.recordButton.alpha = 0
+                self.stopRecordButton.alpha = 1
+            }
         }
     }
     
-    
     @IBAction func handleStopRecording() {
         print("🛑 Stopping Recording...")
-
-        // ✅ Step 1: Immediately detach the Speech Recognition Service so it doesn't throw errors
+        
+        // Detach the speech recognizer.
         self.recognitionTask?.cancel()
         self.recognitionTask = nil
         self.recognitionRequest = nil
-
-        // ✅ Step 2: Stop audio processing to prevent further recognition
+        
         self.audioEngine.inputNode.removeTap(onBus: 0)
         self.audioEngine.stop()
-
-        // ✅ Step 3: Ignore any further recognition errors (prevents kAFAssistantErrorDomain 1101)
-        self.speechRecognizer = nil  // ✅ Completely detach speech recognizer
-
+        self.speechRecognizer = nil
+        
         let finalText = self.transcriptionTextView.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-
-        // ✅ Step 4: Ignore empty final transcriptions
         if finalText.isEmpty {
             print("⚠️ Ignoring empty final transcription. Nothing to translate.")
             return
         }
-
+        
         print("🌍 Finalizing translation for: \(finalText)")
-
-        // ✅ Step 5: Store final transcription and translate
         self.finalTranscriptionText = finalText
         self.presentTranslationView(with: finalText)
-
-        // ✅ Step 6: Ensure audio is generated only if translation exists
+        
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
             if !self.finalTranslatedText.isEmpty {
                 self.generateAudioFromTranslation(self.finalTranslatedText)
@@ -160,13 +211,12 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
                 print("⚠️ No translated text available for audio generation.")
             }
         }
-
-        // ✅ Step 7: Restore UI state
-        self.recordButton.isHidden = false
-        self.stopRecordButton.isHidden = true
+        
+        UIView.animate(withDuration: 0.3) {
+            self.recordButton.alpha = 1
+            self.stopRecordButton.alpha = 0
+        }
     }
-
-
     
     func startRealTimeTranscription() {
         speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: inputLanguage))
@@ -196,43 +246,39 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
         recognitionTask = speechRecognizer.recognitionTask(with: recognitionRequest!) { result, error in
             if let result = result {
                 let transcribedText = result.bestTranscription.formattedString
-                print("📝 Transcribed: \(transcribedText)") // ✅ Debugging
+                print("📝 Transcribed: \(transcribedText)")
                 
                 if self.recognitionTask == nil {
-                                print("⚠️ Skipping translation: Recognition was canceled.")
-                                return
-                            }
-
+                    print("⚠️ Skipping translation: Recognition was canceled.")
+                    return
+                }
                 
                 DispatchQueue.main.async {
                     self.transcriptionTextView.text = transcribedText
-                    self.presentTranslationView(with: transcribedText) // ✅ Automatically translate each update
+                    self.presentTranslationView(with: transcribedText)
                 }
             }
             
-            if let error = error as NSError?{
+            if let error = error as NSError? {
                 if error.code == 1110 {
-                            print("⚠️ Ignoring 'No speech detected' error (User stopped speaking).")
-                            return
-                }
-                else if error.code == 301 {
+                    print("⚠️ Ignoring 'No speech detected' error (User stopped speaking).")
+                    return
+                } else if error.code == 301 {
                     print("⚠️ Ignoring 'Recognition request was canceled' error (User stopped recording).")
                     return
                 }
-
                 print("❌ Transcription error: \(error.localizedDescription) \(error.code)")
             }
         }
     }
-
     
+    // MARK: - Translation Integration
     func presentTranslationView(with text: String) {
-        // ✅ Prevent translation if the ViewController is disappearing
         guard self.isViewLoaded && self.view.window != nil else {
             print("⚠️ Skipping translation: ViewController is disappearing.")
             return
         }
-
+        
         let swiftUIView = TranslationView(
             textToTranslate: text,
             sourceLanguage: Locale.Language(identifier: inputLanguage),
@@ -240,34 +286,31 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
         ) { translatedText in
             DispatchQueue.main.async {
                 print("✅ Translated: \(translatedText)")
-
-                // ✅ Store texts separately
                 self.finalTranscriptionText = text
                 self.finalTranslatedText = translatedText
-
-                // ✅ Update separate UI elements
                 self.transcriptionTextView.text = text
                 self.translationTextView.text = translatedText
             }
         }
-
+        
         let hostingController = UIHostingController(rootView: swiftUIView)
         addChild(hostingController)
-        hostingController.view.frame = CGRect(x: 0, y: 0, width: 0, height: 0) // Hide SwiftUI view
+        // Hide the hosting controller completely.
+        hostingController.view.frame = CGRect(x: 0, y: 0, width: 0, height: 0)
+        hostingController.view.isHidden = true
         view.addSubview(hostingController.view)
         hostingController.didMove(toParent: self)
     }
     
+    // MARK: - Audio Generation & Playback
     func getDocumentsDirectory() -> URL {
         let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
         return paths[0]
     }
-
     
-
     func generateAudioFromTranslation(_ text: String) {
         print("🔊 Generating audio from translated text (FINAL).")
-
+        
         let speechUtterance = AVSpeechUtterance(string: text)
         speechUtterance.voice = AVSpeechSynthesisVoice(language: outputLanguage)
         
@@ -276,23 +319,20 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
         
         self.elevenLabsAudioFileURL = fileURL
         print("✅ Saving translated speech to: \(fileURL)")
-
-
+        
         speechSynthesizerDelegate = SpeechSynthesizerDelegate(completion: {
-                DispatchQueue.main.async {
-                    print("✅ Finished Playing Translated Audio")
-                }
+            DispatchQueue.main.async {
+                print("✅ Finished Playing Translated Audio")
+            }
         })
-
+        
         speechSynthesizer.delegate = speechSynthesizerDelegate
         speechSynthesizer.speak(speechUtterance)
-
-        // ✅ Enable the play button after generating audio
+        
         DispatchQueue.main.async {
             self.playTranslatedAudioButton?.isEnabled = true
         }
     }
-
     
     @IBAction func handlePlayTranslatedAudio() {
         guard let audioFileURL = elevenLabsAudioFileURL else {
@@ -304,7 +344,7 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
             print("❌ Translated audio file is missing: \(audioFileURL.path)")
             return
         }
-
+        
         do {
             setupAudioSession()
             audioPlayer = try AVAudioPlayer(contentsOf: audioFileURL)
@@ -315,10 +355,9 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
             print("❌ Failed to play translated audio:", error)
         }
     }
-
-
 }
 
+// MARK: - SpeechSynthesizerDelegate
 class SpeechSynthesizerDelegate: NSObject, AVSpeechSynthesizerDelegate {
     private let completion: () -> Void
     init(completion: @escaping () -> Void) { self.completion = completion }
