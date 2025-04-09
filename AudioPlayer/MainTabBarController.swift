@@ -11,8 +11,9 @@ class MainTabBarController: UITabBarController {
     
     private func setupViewControllers() {
         // Recorder Tab
-        let recorderVC = ViewController()
-        recorderVC.tabBarItem = UITabBarItem(
+        let recordView = RecordView()
+        let recordHostingController = UIHostingController(rootView: recordView)
+        recordHostingController.tabBarItem = UITabBarItem(
             title: "Record",
             image: UIImage(systemName: "mic"),
             selectedImage: UIImage(systemName: "mic.fill")
@@ -28,14 +29,14 @@ class MainTabBarController: UITabBarController {
         )
         
         // Set View Controllers
-        viewControllers = [recorderVC, libraryHostingController]
+        viewControllers = [recordHostingController, libraryHostingController]
     }
     
     private func setupAppearance() {
         // Set tab bar appearance
         let appearance = UITabBarAppearance()
         appearance.configureWithOpaqueBackground()
-        appearance.backgroundColor = UIColor(hex: "#23252c")
+        appearance.backgroundColor = AppTheme.backgroundColorUI
         
         // Set colors for items
         appearance.stackedLayoutAppearance.normal.titleTextAttributes = [.foregroundColor: UIColor.gray]
