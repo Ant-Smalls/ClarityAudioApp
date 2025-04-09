@@ -296,9 +296,12 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 3BDQUY7Y95;
+				DEVELOPMENT_TEAM = 5L8ASS5X9Y;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = AudioPlayer/Info.plist;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "We need network access for translation services.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "We need access to your microphone to record audio.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "We need speech recognition to transcribe your speech.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;
@@ -309,7 +312,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "Swit-Test.AudioPlayer";
+				PRODUCT_BUNDLE_IDENTIFIER = com.tciric.SwiftTestAudioPlayer;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -324,9 +327,12 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 3BDQUY7Y95;
+				DEVELOPMENT_TEAM = 5L8ASS5X9Y;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = AudioPlayer/Info.plist;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "We need network access for translation services.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "We need access to your microphone to record audio.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "We need speech recognition to transcribe your speech.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;
@@ -337,7 +343,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "Swit-Test.AudioPlayer";
+				PRODUCT_BUNDLE_IDENTIFIER = com.tciric.SwiftTestAudioPlayer;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;

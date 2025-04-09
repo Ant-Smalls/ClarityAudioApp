@@ -12,7 +12,7 @@ struct AnimatedButtonStyle: ButtonStyle {
         configuration.label
             .padding()
             .frame(maxWidth: .infinity)
-            .background(Color(hex: "#40607e"))
+            .background(AppTheme.secondaryColor)
             .foregroundColor(.white)
             .cornerRadius(8)
             .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
@@ -22,86 +22,117 @@ struct AnimatedButtonStyle: ButtonStyle {
 
 struct LanguageSelectionView: View {
     @State private var inputLanguage: String = "en-US"
-    @State private var outputLanguage: String = "es"
-    let languages = ["en-US", "es", "de", "pt-BR", "ja"]
-
+    @State private var outputLanguage: String = "es-ES"
+    
+    private let languages = [
+        "en-US": "English (US)",
+        "es-ES": "Spanish",
+        "fr-FR": "French",
+        "de-DE": "German",
+        "it-IT": "Italian"
+    ]
+    
     var body: some View {
         ZStack {
-            // A smooth gradient background using the defined primary, secondary, and tertiary colors.
+            // Background gradient
             LinearGradient(
-                gradient: Gradient(colors: [Color(hex: "#23252c"), Color(hex: "#40607e"), Color(hex: "#584d78")]),
+                gradient: Gradient(colors: [
+                    AppTheme.backgroundColor,
+                    AppTheme.secondaryColor,
+                    AppTheme.accentColor
+                ]),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
-            .ignoresSafeArea()
+            .edgesIgnoringSafeArea(.all)
             
             VStack(spacing: 20) {
-                // App logo image, now larger.
-                Image("AppLogo")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 250, height: 250)
-                    .padding(.bottom, 20)
-                
-                // Title text.
-                Text("Select Input & Output Languages")
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                Text("Select Languages")
+                    .font(.largeTitle)
                     .foregroundColor(.white)
-                    .multilineTextAlignment(.center)
+                    .padding(.top, 40)
                 
-                // Input Language Picker.
-                Picker("Select Input Language", selection: $inputLanguage) {
-                    ForEach(languages, id: \.self) { language in
-                        Text(language)
-                            .foregroundColor(.white)
-                            .font(.system(size: 18, weight: .medium, design: .rounded))
+                // Input Language Picker
+                VStack(alignment: .leading) {
+                    Text("Input Language")
+                        .foregroundColor(.white)
+                        .font(.headline)
+                    
+                    Picker("Input Language", selection: $inputLanguage) {
+                        ForEach(Array(languages.keys.sorted()), id: \.self) { code in
+                            Text(languages[code] ?? code)
+                                .foregroundColor(.white)
+                                .tag(code)
+                        }
                     }
+                    .pickerStyle(MenuPickerStyle())
+                    .accentColor(.white)
+                    .padding()
+                    .background(AppTheme.secondaryColor)
+                    .cornerRadius(8)
                 }
-                .pickerStyle(MenuPickerStyle())
-                .padding()
-                .background(Color(hex: "#40607e"))
-                .cornerRadius(8)
+                .padding(.horizontal)
                 
-                // Output Language Picker.
-                Picker("Select Output Language", selection: $outputLanguage) {
-                    ForEach(languages, id: \.self) { language in
-                        Text(language)
-                            .foregroundColor(.white)
-                            .font(.system(size: 18, weight: .medium, design: .rounded))
+                // Output Language Picker
+                VStack(alignment: .leading) {
+                    Text("Output Language")
+                        .foregroundColor(.white)
+                        .font(.headline)
+                    
+                    Picker("Output Language", selection: $outputLanguage) {
+                        ForEach(Array(languages.keys.sorted()), id: \.self) { code in
+                            Text(languages[code] ?? code)
+                                .foregroundColor(.white)
+                                .tag(code)
+                        }
                     }
+                    .pickerStyle(MenuPickerStyle())
+                    .accentColor(.white)
+                    .padding()
+                    .background(AppTheme.secondaryColor)
+                    .cornerRadius(8)
                 }
-                .pickerStyle(MenuPickerStyle())
-                .padding()
-                .background(Color(hex: "#40607e"))
-                .cornerRadius(8)
+                .padding(.horizontal)
                 
-                // Continue Button.
                 Button(action: {
                     navigateToMainView()
                 }) {
                     Text("Continue")
-                        .font(.system(size: 20, weight: .semibold, design: .rounded))
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(AppTheme.accentColor)
+                        .cornerRadius(8)
                 }
-                .buttonStyle(AnimatedButtonStyle())
+                .padding(.horizontal)
+                .padding(.top, 20)
+                
+                Spacer()
             }
-            // Move the entire VStack toward the top while keeping it horizontally centered.
-            .padding(.horizontal, 20)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .padding(.top, 60) // Adjust this value for desired vertical placement.
         }
     }
-
-    func navigateToMainView() {
+    
+    private func navigateToMainView() {
         guard let sceneDelegate = UIApplication.shared.connectedScenes
-                .first(where: { $0.activationState == .foregroundActive })?.delegate as? SceneDelegate,
-              let navigationController = sceneDelegate.window?.rootViewController as? UINavigationController else {
-            print("❌ NavigationController not found")
+                .first?.delegate as? SceneDelegate else {
             return
         }
-        let mainViewController = UIHostingController(rootView: ViewControllerWrapper(inputLanguage: inputLanguage, outputLanguage: outputLanguage))
-        DispatchQueue.main.async {
-            navigationController.pushViewController(mainViewController, animated: true)
+        
+        // Create view controller from storyboard
+        let storyboard = UIStoryboard(name: "Main", bundle: nil)
+        guard let viewController = storyboard.instantiateViewController(withIdentifier: "ViewController") as? ViewController else {
+            print("❌ Could not instantiate ViewController from storyboard")
+            return
         }
+        
+        // Set the languages
+        viewController.inputLanguage = inputLanguage
+        viewController.outputLanguage = outputLanguage
+        
+        let navigationController = UINavigationController(rootViewController: viewController)
+        sceneDelegate.window?.rootViewController = navigationController
+        sceneDelegate.window?.makeKeyAndVisible()
     }
 }
 

@@ -5,36 +5,56 @@
 //  Created by Anthony Smaldore on 3/1/25.
 
 import SwiftUI
-import Translation
 
 struct TranslationView: View {
-    let textToTranslate: String
-    let sourceLanguage: Locale.Language
-    let targetLanguage: Locale.Language
-    let onTranslationComplete: (String) -> Void
-
-    @State private var translationTask: Task<Void, Never>? // For task cancellation.
-
+    let sourceText: String
+    let sourceLanguage: String
+    let targetLanguage: String
+    let onComplete: (String) -> Void
+    
+    @State private var isTranslating = true
+    @Environment(\.dismiss) private var dismiss
+    
     var body: some View {
-        // An invisible view that triggers translation in the background.
-        Color.clear
-            .translationTask(source: sourceLanguage, target: targetLanguage) { session in
-                translationTask = Task {
-                    do {
-                        // Perform translation asynchronously.
-                        let response = try await session.translate(textToTranslate)
-                        DispatchQueue.main.async {
-                            onTranslationComplete(response.targetText)
-                        }
-                    } catch {
-                        print("❌ Translation failed:", error)
-                    }
+        ZStack {
+            // Background color
+            AppTheme.backgroundColor
+                .edgesIgnoringSafeArea(.all)
+            
+            VStack(spacing: 20) {
+                // Source text section
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("Original Text", systemImage: "text.quote")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                    
+                    Text(sourceText)
+                        .font(.body)
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(AppTheme.secondaryColor)
+                        .cornerRadius(8)
                 }
+                
+                if isTranslating {
+                    // Loading indicator
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                }
+                
+                Spacer()
             }
-            .onDisappear {
-                // Cancel any ongoing task when this view goes away.
-                translationTask?.cancel()
-                translationTask = nil
+            .padding()
+        }
+        .onAppear {
+            // Simulate translation with a simple delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                // For now, just return a placeholder translation
+                let translatedText = "Translation placeholder: \(sourceText)"
+                isTranslating = false
+                onComplete(translatedText)
+                dismiss()
             }
+        }
     }
 }
