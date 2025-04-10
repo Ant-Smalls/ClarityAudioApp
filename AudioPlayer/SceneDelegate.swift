@@ -12,29 +12,13 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     var window: UIWindow?
 
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
-        if let windowScene = scene as? UIWindowScene {
-            let window = UIWindow(windowScene: windowScene)
-            let languageSelectionView = LanguageSelectionView()
-
-            let hostingController = UIHostingController(rootView: languageSelectionView)
-            let navigationController = UINavigationController(rootViewController: hostingController)
-            
-            // Customize the Navigation Bar appearance.
-            let appearance = UINavigationBarAppearance()
-            appearance.configureWithOpaqueBackground()
-            appearance.backgroundColor = UIColor(hex: "#23252c")
-            appearance.titleTextAttributes = [
-                .foregroundColor: UIColor.white,
-                .font: UIFont.systemFont(ofSize: 20, weight: .semibold)
-            ]
-            navigationController.navigationBar.standardAppearance = appearance
-            navigationController.navigationBar.scrollEdgeAppearance = appearance
-            navigationController.navigationBar.tintColor = UIColor.white
-
-            window.rootViewController = navigationController
-            self.window = window
-            window.makeKeyAndVisible()
-        }
+        guard let windowScene = (scene as? UIWindowScene) else { return }
+        
+        let window = UIWindow(windowScene: windowScene)
+        let tabBarController = MainTabBarController()
+        window.rootViewController = tabBarController
+        window.makeKeyAndVisible()
+        self.window = window
     }
 
     func sceneDidDisconnect(_ scene: UIScene) {}
