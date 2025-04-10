@@ -113,39 +113,37 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
     
     // MARK: - UI Styling
     func styleUI() {
-        // Set a modern, clean font for buttons.
-        let buttonFont = UIFont.systemFont(ofSize: 16, weight: .medium)
-        recordButton.titleLabel?.font = buttonFont
-        stopRecordButton.titleLabel?.font = buttonFont
-        playTranslatedAudioButton.titleLabel?.font = buttonFont
+        // Style record button
+        recordButton.applyModernStyle()
+        recordButton.setImage(UIImage(systemName: "mic.fill"), for: .normal)
+        recordButton.setTitle("Start Recording", for: .normal)
+        recordButton.imageEdgeInsets = UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 8)
         
-        // Style record button.
-        recordButton.backgroundColor = UIColor(hex: "#40607e")
-        recordButton.setTitleColor(.white, for: .normal)
-        recordButton.layer.cornerRadius = 8
-        
-        // Style stop record button.
-        stopRecordButton.backgroundColor = UIColor(hex: "#40607e")
+        // Style stop record button
+        stopRecordButton.applyModernStyle()
+        stopRecordButton.setImage(UIImage(systemName: "stop.fill"), for: .normal)
+        stopRecordButton.setTitle("Stop Recording", for: .normal)
+        stopRecordButton.imageEdgeInsets = UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 8)
+        stopRecordButton.backgroundColor = UIColor(hex: "#FF3B30") // Red tint for stop
         stopRecordButton.setTitleColor(.white, for: .normal)
-        stopRecordButton.layer.cornerRadius = 8
         
-        // Style play translated audio button.
-        playTranslatedAudioButton.backgroundColor = UIColor(hex: "#40607e")
-        playTranslatedAudioButton.setTitleColor(.white, for: .normal)
-        playTranslatedAudioButton.layer.cornerRadius = 8
+        // Style play translated audio button
+        playTranslatedAudioButton.applyModernStyle()
+        playTranslatedAudioButton.setImage(UIImage(systemName: "play.fill"), for: .normal)
+        playTranslatedAudioButton.setTitle("Play Translation", for: .normal)
+        playTranslatedAudioButton.imageEdgeInsets = UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 8)
         
-        // Style transcription text view.
-        transcriptionTextView.backgroundColor = UIColor(hex: "#584d78")
+        // Style text views
+        transcriptionTextView.backgroundColor = UIColor.white.withAlphaComponent(0.1)
         transcriptionTextView.textColor = .white
-        transcriptionTextView.font = UIFont.systemFont(ofSize: 16, weight: .regular)
-        transcriptionTextView.layer.cornerRadius = 8
+        transcriptionTextView.font = .systemFont(ofSize: 16, weight: .regular)
+        transcriptionTextView.layer.cornerRadius = 12
         transcriptionTextView.clipsToBounds = true
         
-        // Style translation text view.
-        translationTextView.backgroundColor = UIColor(hex: "#584d78")
+        translationTextView.backgroundColor = UIColor.white.withAlphaComponent(0.1)
         translationTextView.textColor = .white
-        translationTextView.font = UIFont.systemFont(ofSize: 16, weight: .regular)
-        translationTextView.layer.cornerRadius = 8
+        translationTextView.font = .systemFont(ofSize: 16, weight: .regular)
+        translationTextView.layer.cornerRadius = 12
         translationTextView.clipsToBounds = true
     }
     
@@ -377,23 +375,21 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
         saveRecordingButton.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(saveRecordingButton)
         
-        // Configure button appearance
+        // Apply modern style
+        saveRecordingButton.applyModernStyle()
+        saveRecordingButton.setImage(UIImage(systemName: "square.and.arrow.down.fill"), for: .normal)
         saveRecordingButton.setTitle("Save Recording", for: .normal)
-        saveRecordingButton.backgroundColor = UIColor(hex: "#40607e")
-        saveRecordingButton.setTitleColor(.white, for: .normal)
-        saveRecordingButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
-        saveRecordingButton.layer.cornerRadius = 8
-        saveRecordingButton.clipsToBounds = true
+        saveRecordingButton.imageEdgeInsets = UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 8)
         
         // Add target for the save action
         saveRecordingButton.addTarget(self, action: #selector(handleSaveRecording), for: .touchUpInside)
         
-        // Setup constraints
+        // Setup constraints with more padding
         NSLayoutConstraint.activate([
-            saveRecordingButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 20),
-            saveRecordingButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -20),
-            saveRecordingButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
-            saveRecordingButton.heightAnchor.constraint(equalToConstant: 44)
+            saveRecordingButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 24),
+            saveRecordingButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -24),
+            saveRecordingButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -24),
+            saveRecordingButton.heightAnchor.constraint(equalToConstant: 50)
         ])
     }
     
@@ -491,5 +487,41 @@ class SpeechSynthesizerDelegate: NSObject, AVSpeechSynthesizerDelegate {
     
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
         completion()
+    }
+}
+
+// Add this extension at the bottom of the file
+extension UIButton {
+    func applyModernStyle() {
+        backgroundColor = .white
+        setTitleColor(UIColor(hex: "#40607e"), for: .normal)
+        titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
+        layer.cornerRadius = 12
+        clipsToBounds = true
+        
+        // Add subtle shadow
+        layer.shadowColor = UIColor.black.cgColor
+        layer.shadowOffset = CGSize(width: 0, height: 2)
+        layer.shadowRadius = 4
+        layer.shadowOpacity = 0.1
+        layer.masksToBounds = false
+        
+        // Add subtle animation on press
+        addTarget(self, action: #selector(touchDown), for: .touchDown)
+        addTarget(self, action: #selector(touchUp), for: [.touchUpInside, .touchUpOutside, .touchCancel])
+    }
+    
+    @objc private func touchDown() {
+        UIView.animate(withDuration: 0.1) {
+            self.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)
+            self.alpha = 0.9
+        }
+    }
+    
+    @objc private func touchUp() {
+        UIView.animate(withDuration: 0.1) {
+            self.transform = .identity
+            self.alpha = 1
+        }
     }
 }

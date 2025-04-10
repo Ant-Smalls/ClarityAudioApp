@@ -69,6 +69,8 @@ struct RecordingCell: View {
     let recording: RecordingSession
     let onDelete: () -> Void
     @State private var showingDeleteAlert = false
+    @State private var showingTranscription = false
+    @State private var showingTranslation = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -80,6 +82,18 @@ struct RecordingCell: View {
                 Spacer()
                 
                 Menu {
+                    Button(action: {
+                        showingTranscription = true
+                    }) {
+                        Label("View Transcription", systemImage: "doc.text")
+                    }
+                    
+                    Button(action: {
+                        showingTranslation = true
+                    }) {
+                        Label("View Translation", systemImage: "doc.text.translate")
+                    }
+                    
                     Button(role: .destructive, action: {
                         showingDeleteAlert = true
                     }) {
@@ -129,6 +143,12 @@ struct RecordingCell: View {
         } message: {
             Text("Are you sure you want to delete this recording? This action cannot be undone.")
         }
+        .sheet(isPresented: $showingTranscription) {
+            TranscriptionView(text: recording.transcription, language: recording.sourceLanguage)
+        }
+        .sheet(isPresented: $showingTranslation) {
+            TranscriptionView(text: recording.translation, language: recording.targetLanguage)
+        }
     }
     
     private func formatDuration(_ duration: TimeInterval) -> String {
@@ -142,6 +162,52 @@ struct RecordingCell: View {
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         return formatter.string(from: date)
+    }
+}
+
+// Add a view for displaying text
+struct TranscriptionView: View {
+    let text: String
+    let language: String
+    @Environment(\.presentationMode) var presentationMode
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+                // Background gradient
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        AppTheme.backgroundColor,
+                        AppTheme.secondaryColor
+                    ]),
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .edgesIgnoringSafeArea(.all)
+                
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text(text)
+                            .font(.body)
+                            .foregroundColor(.white)
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.white.opacity(0.1))
+                            .cornerRadius(12)
+                    }
+                    .padding()
+                }
+            }
+            .navigationTitle(language)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        presentationMode.wrappedValue.dismiss()
+                    }
+                }
+            }
+        }
     }
 }
 
