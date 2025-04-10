@@ -4,6 +4,7 @@ import Speech
 
 struct RecordView: View {
     @StateObject var viewModel: RecordViewModel
+    @Environment(\.presentationMode) var presentationMode
     
     init(inputLanguage: String = "en-US", outputLanguage: String = "es-ES") {
         let model = RecordViewModel()
@@ -27,6 +28,30 @@ struct RecordView: View {
             .edgesIgnoringSafeArea(.all)
             
             VStack(spacing: 20) {
+                // Top Bar with Settings Button
+                HStack {
+                    Spacer()
+                    Button(action: {
+                        // Return to language selection with current languages
+                        if let sceneDelegate = UIApplication.shared.connectedScenes
+                            .first?.delegate as? SceneDelegate {
+                            let languageSelectionView = LanguageSelectionView(
+                                initialInputLanguage: viewModel.inputLanguage,
+                                initialOutputLanguage: viewModel.outputLanguage
+                            )
+                            let hostingController = UIHostingController(rootView: languageSelectionView)
+                            sceneDelegate.window?.rootViewController = hostingController
+                            sceneDelegate.window?.makeKeyAndVisible()
+                        }
+                    }) {
+                        Image(systemName: "globe")
+                            .font(.system(size: 24))
+                            .foregroundColor(.white)
+                            .padding()
+                    }
+                }
+                .padding(.horizontal)
+                
                 // Transcription Section
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Transcriptions:")

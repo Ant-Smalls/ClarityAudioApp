@@ -1,8 +1,14 @@
 import SwiftUI
 
 struct LanguageSelectionView: View {
-    @State private var inputLanguage: String = "en-US"
-    @State private var outputLanguage: String = "ja"
+    @State private var inputLanguage: String
+    @State private var outputLanguage: String
+    @State private var showingAlert = false
+    
+    init(initialInputLanguage: String = "en-US", initialOutputLanguage: String = "ja") {
+        _inputLanguage = State(initialValue: initialInputLanguage)
+        _outputLanguage = State(initialValue: initialOutputLanguage)
+    }
     
     private let languages = [
         "en-US": "English (US)",
@@ -29,27 +35,21 @@ struct LanguageSelectionView: View {
             .edgesIgnoringSafeArea(.all)
             
             VStack(spacing: 30) {
-                // Logo and App Name
-                VStack(spacing: 10) {
-                    Image(systemName: "waveform.and.mic")
+                VStack(spacing: 20) {
+                    // App logo image, now larger.
+                    Image("AppLogo")
                         .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 60, height: 60)
-                        .foregroundColor(.white)
+                        .scaledToFit()
+                        .frame(width: 250, height: 250)
+                        .padding(.bottom, 20)
                     
-                    Text("clarity")
-                        .font(.system(size: 40, weight: .medium))
+                    // Title text.
+                    Text("Select Input & Output Languages")
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
                 }
                 .padding(.top, 60)
-                
-                // Title
-                Text("Select Input & Output Languages")
-                    .font(.title2)
-                    .fontWeight(.medium)
-                    .foregroundColor(.white)
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 20)
                 
                 Spacer()
                 
@@ -106,11 +106,11 @@ struct LanguageSelectionView: View {
                 
                 Spacer()
                 
-                // Continue Button
+                // Apply Button
                 Button(action: {
-                    navigateToMainView()
+                    applyLanguageSettings()
                 }) {
-                    Text("Continue")
+                    Text("Apply Changes")
                         .font(.headline)
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
@@ -122,23 +122,31 @@ struct LanguageSelectionView: View {
                 .padding(.bottom, 40)
             }
         }
+        .alert(isPresented: $showingAlert) {
+            Alert(
+                title: Text("Languages Updated"),
+                message: Text("Your language settings have been updated."),
+                dismissButton: .default(Text("OK"))
+            )
+        }
     }
     
-    private func navigateToMainView() {
+    private func applyLanguageSettings() {
         guard let sceneDelegate = UIApplication.shared.connectedScenes
                 .first?.delegate as? SceneDelegate else {
             return
         }
         
-        // Create RecordView with selected languages
-        let recordView = RecordView(inputLanguage: inputLanguage, outputLanguage: outputLanguage)
-        let recordHostingController = UIHostingController(rootView: recordView)
-        recordHostingController.modalPresentationStyle = .fullScreen
+        // Create new tab controller with updated languages
+        let tabController = MainTabBarController(
+            inputLanguage: inputLanguage,
+            outputLanguage: outputLanguage
+        )
         
-        let navigationController = UINavigationController(rootViewController: recordHostingController)
-        navigationController.setNavigationBarHidden(true, animated: false)
-        sceneDelegate.window?.rootViewController = navigationController
+        sceneDelegate.window?.rootViewController = tabController
         sceneDelegate.window?.makeKeyAndVisible()
+        
+        showingAlert = true
     }
 }
 

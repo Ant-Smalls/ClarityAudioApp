@@ -3,6 +3,19 @@ import SwiftUI
 
 class MainTabBarController: UITabBarController {
     
+    var inputLanguage: String = "en-US"
+    var outputLanguage: String = "es-ES"
+    
+    init(inputLanguage: String, outputLanguage: String) {
+        self.inputLanguage = inputLanguage
+        self.outputLanguage = outputLanguage
+        super.init(nibName: nil, bundle: nil)
+    }
+    
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+    }
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         setupViewControllers()
@@ -10,8 +23,20 @@ class MainTabBarController: UITabBarController {
     }
     
     private func setupViewControllers() {
-        // Recorder Tab
-        let recordView = RecordView()
+        // Settings Tab
+        let settingsView = LanguageSelectionView(
+            initialInputLanguage: inputLanguage,
+            initialOutputLanguage: outputLanguage
+        )
+        let settingsHostingController = UIHostingController(rootView: settingsView)
+        settingsHostingController.tabBarItem = UITabBarItem(
+            title: "Languages",
+            image: UIImage(systemName: "globe"),
+            selectedImage: UIImage(systemName: "globe.fill")
+        )
+        
+        // Record Tab
+        let recordView = RecordView(inputLanguage: inputLanguage, outputLanguage: outputLanguage)
         let recordHostingController = UIHostingController(rootView: recordView)
         recordHostingController.tabBarItem = UITabBarItem(
             title: "Record",
@@ -29,7 +54,10 @@ class MainTabBarController: UITabBarController {
         )
         
         // Set View Controllers
-        viewControllers = [recordHostingController, libraryHostingController]
+        viewControllers = [settingsHostingController, recordHostingController, libraryHostingController]
+        
+        // Set the initial tab
+        selectedIndex = 0
     }
     
     private func setupAppearance() {
