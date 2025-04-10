@@ -1,9 +1,8 @@
+// XILabsAudioCreator.swift
+// AudioPlayer
+// Created by Yusuke Abe, Tadija Ciric, Anthony Smaldore on 12/6/24.
 //
-//  XILabsAudioCreator.swift
-//  AudioPlayer
-//
-//  Created by Anthony Smaldore on 12/6/24.
-//
+// External class that handles generate vocie specific Audio
 
 
 import Foundation
@@ -19,7 +18,7 @@ class ElevenLabsAPI {
     // Generate audio from text using Eleven Labs API
     func generateSpeech(from text: String, completion: @escaping (Result<URL, Error>) -> Void) {
         // Create the Eleven Labs request URL (replace `voice_id` with your specific voice ID)
-        //let voiceId = "LuJj551LhJ7vMONG4u8r" // Replace with actual Eleven Labs voice ID
+        //let voiceId = "LuJj551LhJ7vMONG4u8r" // Example Voice ID
         guard let url = URL(string: "\(apiEndpoint)") else {
             completion(.failure(NSError(domain: "Invalid URL", code: 0, userInfo: nil)))
             return

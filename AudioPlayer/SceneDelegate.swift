@@ -1,8 +1,7 @@
+// SceneDelegate.swift
+// AudioPlayer
+// Created by Yusuke Abe, Tadija Ciric, Anthony Smaldore on 12/6/24.
 //
-//  SceneDelegate.swift
-//  AudioPlayer
-//
-//  Created by Anthony Smaldore on 12/6/24.
 
 import UIKit
 import SwiftUI

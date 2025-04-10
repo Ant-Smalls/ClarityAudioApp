@@ -1,8 +1,8 @@
+// ColorExtensions.swift
+// AudioPlayer
+// Created by Yusuke Abe, Tadija Ciric, Anthony Smaldore on 12/6/24.
 //
-//  ColorExtensions.swift
-//  AudioPlayer
-//
-//  Created by Yusuke Abe on 2025/04/03.
+
 
 import SwiftUI
 import UIKit
