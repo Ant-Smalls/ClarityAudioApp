@@ -1,10 +1,7 @@
+// AppDelegate.swift
+// AudioPlayer
+// Created by Yusuke Abe, Tadija Ciric, Anthony Smaldore on 12/6/24.
 //
-//  AppDelegate.swift
-//  AudioPlayer
-//
-//  Created by Anthony Smaldore on 12/6/24.
-//
-
 import UIKit
 
 @main
