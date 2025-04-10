@@ -39,6 +39,10 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
     // Gradient layer property.
     var gradientLayer: CAGradientLayer?
     
+    // Add new properties
+    private var currentRecordingDuration: TimeInterval = 0
+    private var recordingStartTime: Date?
+    
     // MARK: - UI Elements (Connected via Storyboard)
     @IBOutlet weak var recordButton: UIButton!
     @IBOutlet weak var stopRecordButton: UIButton!
@@ -46,17 +50,22 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
     @IBOutlet weak var translationTextView: UITextView!
     @IBOutlet weak var playTranslatedAudioButton: UIButton!
     
+    // Remove IBOutlet and make it a regular property
+    private var saveRecordingButton: UIButton!
+    
     // MARK: - Lifecycle Methods
     override func viewDidLoad() {
         super.viewDidLoad()
         applyGradientBackground()
         setupAudioSession()
         requestSpeechPermission()
+        setupSaveButton()
         styleUI()
         
         // Set initial button states.
         recordButton.alpha = 1
         stopRecordButton.alpha = 0
+        saveRecordingButton.isHidden = true
         
         print("✅ Using Input Language: \(inputLanguage), Output Language: \(outputLanguage)")
     }
@@ -175,15 +184,21 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
     @IBAction func handleRecord() {
         if !audioEngine.isRunning {
             startRealTimeTranscription()
+            recordingStartTime = Date()
             UIView.animate(withDuration: 0.3) {
                 self.recordButton.alpha = 0
                 self.stopRecordButton.alpha = 1
+                self.saveRecordingButton.isHidden = true
             }
         }
     }
     
     @IBAction func handleStopRecording() {
         print("🛑 Stopping Recording...")
+        
+        if let startTime = recordingStartTime {
+            currentRecordingDuration = Date().timeIntervalSince(startTime)
+        }
         
         // Detach the speech recognizer.
         self.recognitionTask?.cancel()
@@ -215,6 +230,7 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
         UIView.animate(withDuration: 0.3) {
             self.recordButton.alpha = 1
             self.stopRecordButton.alpha = 0
+            self.saveRecordingButton.isHidden = false
         }
     }
     
@@ -354,6 +370,117 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
         } catch {
             print("❌ Failed to play translated audio:", error)
         }
+    }
+    
+    private func setupSaveButton() {
+        saveRecordingButton = UIButton(type: .system)
+        saveRecordingButton.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(saveRecordingButton)
+        
+        // Configure button appearance
+        saveRecordingButton.setTitle("Save Recording", for: .normal)
+        saveRecordingButton.backgroundColor = UIColor(hex: "#40607e")
+        saveRecordingButton.setTitleColor(.white, for: .normal)
+        saveRecordingButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
+        saveRecordingButton.layer.cornerRadius = 8
+        saveRecordingButton.clipsToBounds = true
+        
+        // Add target for the save action
+        saveRecordingButton.addTarget(self, action: #selector(handleSaveRecording), for: .touchUpInside)
+        
+        // Setup constraints
+        NSLayoutConstraint.activate([
+            saveRecordingButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 20),
+            saveRecordingButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -20),
+            saveRecordingButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
+            saveRecordingButton.heightAnchor.constraint(equalToConstant: 44)
+        ])
+    }
+    
+    @objc func handleSaveRecording() {
+        let alert = UIAlertController(
+            title: "Save Recording",
+            message: "Enter a name for your recording",
+            preferredStyle: .alert
+        )
+        
+        alert.addTextField { textField in
+            textField.placeholder = "Recording name"
+            textField.text = "Recording \(self.recordingCount)"
+        }
+        
+        let saveAction = UIAlertAction(title: "Save", style: .default) { [weak self] _ in
+            guard let self = self,
+                  let name = alert.textFields?.first?.text,
+                  !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                self?.showError(message: "Please enter a valid name")
+                return
+            }
+            
+            self.saveRecording(name: name)
+        }
+        
+        let cancelAction = UIAlertAction(title: "Cancel", style: .cancel)
+        
+        alert.addAction(saveAction)
+        alert.addAction(cancelAction)
+        
+        present(alert, animated: true)
+    }
+    
+    private func saveRecording(name: String) {
+        guard let audioFileURL = elevenLabsAudioFileURL else {
+            showError(message: "No audio file available")
+            return
+        }
+        
+        // If name is empty, use UUID as backup
+        let finalName = name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 
+            UUID().uuidString : name
+        
+        let recording = RecordingSession(
+            id: UUID(),
+            name: finalName,
+            dateCreated: Date(),
+            duration: currentRecordingDuration,
+            audioFileName: audioFileURL.lastPathComponent,
+            sourceLanguage: inputLanguage,
+            targetLanguage: outputLanguage,
+            transcription: finalTranscriptionText,
+            translation: finalTranslatedText
+        )
+        
+        do {
+            try DatabaseManager.shared.saveRecording(recording)
+            recordingCount += 1
+            
+            // Show success message
+            let successAlert = UIAlertController(
+                title: "Success",
+                message: "Recording saved successfully",
+                preferredStyle: .alert
+            )
+            successAlert.addAction(UIAlertAction(title: "OK", style: .default))
+            present(successAlert, animated: true)
+            
+            // Reset UI
+            saveRecordingButton.isHidden = true
+            transcriptionTextView.text = ""
+            translationTextView.text = ""
+            
+        } catch {
+            showError(message: "Failed to save recording: \(error.localizedDescription)")
+        }
+    }
+    
+    private func showError(message: String) {
+        let alert = UIAlertController(
+            title: "Error",
+            message: message,
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
     }
 }
 
