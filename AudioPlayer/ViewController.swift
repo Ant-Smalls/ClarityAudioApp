@@ -193,6 +193,14 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
         transcriptionTextView.font = .systemFont(ofSize: 16, weight: .regular)
         transcriptionTextView.layer.cornerRadius = 12
         transcriptionTextView.clipsToBounds = true
+        transcriptionTextView.isEditable = false
+        
+        translationTextView.backgroundColor = UIColor.white.withAlphaComponent(0.1)
+        translationTextView.textColor = .white
+        translationTextView.font = .systemFont(ofSize: 16, weight: .regular)
+        translationTextView.layer.cornerRadius = 12
+        translationTextView.clipsToBounds = true
+        translationTextView.isEditable = false
         
         // Add language indicator label
         languageIndicatorLabel = UILabel()
@@ -211,12 +219,6 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
             languageIndicatorLabel.topAnchor.constraint(equalTo: transcriptionTextView.bottomAnchor, constant: 8),
             languageIndicatorLabel.bottomAnchor.constraint(equalTo: translationTextView.topAnchor, constant: -8)
         ])
-        
-        translationTextView.backgroundColor = UIColor.white.withAlphaComponent(0.1)
-        translationTextView.textColor = .white
-        translationTextView.font = .systemFont(ofSize: 16, weight: .regular)
-        translationTextView.layer.cornerRadius = 12
-        translationTextView.clipsToBounds = true
         
         // Adjust save button position to be below record/stop buttons
         NSLayoutConstraint.activate([
@@ -267,6 +269,10 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
     // MARK: - Recording Actions
     @IBAction func handleRecord() {
         if !audioEngine.isRunning {
+            // Clear text views before starting new recording
+            transcriptionTextView.text = ""
+            translationTextView.text = ""
+            
             startRealTimeTranscription()
             recordingStartTime = Date()
             UIView.animate(withDuration: 0.3) {
