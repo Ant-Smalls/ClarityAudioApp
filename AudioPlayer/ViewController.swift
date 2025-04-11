@@ -26,6 +26,21 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
     var finalTranscriptionText: String = ""
     var finalTranslatedText: String = ""
     
+    // Language display names
+    private let languageDisplayNames: [String: String] = [
+        "en-US": "English",
+        "es": "Spanish",
+        "de": "German",
+        "pt-BR": "Portuguese",
+        "ja": "Japanese",
+        "fr": "French",
+        "it": "Italian",
+        "ru": "Russian"
+    ]
+    
+    // Language indicator label
+    private var languageIndicatorLabel: UILabel!
+    
     var speechRecognizer: SFSpeechRecognizer?
     var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     var recognitionTask: SFSpeechRecognitionTask?
@@ -121,19 +136,50 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
     
     // MARK: - UI Styling
     func styleUI() {
-        // Style record button
-        recordButton.applyModernStyle()
+        // Style record button - make it circular with just the mic icon
+        recordButton.translatesAutoresizingMaskIntoConstraints = false
+        recordButton.backgroundColor = .white
+        recordButton.tintColor = UIColor(hex: "#40607e")
         recordButton.setImage(UIImage(systemName: "mic.fill"), for: .normal)
-        recordButton.setTitle("Start Recording", for: .normal)
-        recordButton.imageEdgeInsets = UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 8)
+        recordButton.setTitle("", for: .normal) // Remove text, icon only
+        recordButton.layer.cornerRadius = 40 // Increased from 30 to 40
+        recordButton.clipsToBounds = true
         
-        // Style stop record button
-        stopRecordButton.applyModernStyle()
+        // Add shadow to record button
+        recordButton.layer.shadowColor = UIColor.black.cgColor
+        recordButton.layer.shadowOffset = CGSize(width: 0, height: 2)
+        recordButton.layer.shadowRadius = 4
+        recordButton.layer.shadowOpacity = 0.2
+        recordButton.layer.masksToBounds = false
+        
+        // Style stop record button - make it circular with stop icon
+        stopRecordButton.translatesAutoresizingMaskIntoConstraints = false
+        stopRecordButton.backgroundColor = UIColor(hex: "#FF3B30")
+        stopRecordButton.tintColor = .white
         stopRecordButton.setImage(UIImage(systemName: "stop.fill"), for: .normal)
-        stopRecordButton.setTitle("Stop Recording", for: .normal)
-        stopRecordButton.imageEdgeInsets = UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 8)
-        stopRecordButton.backgroundColor = UIColor(hex: "#FF3B30") // Red tint for stop
-        stopRecordButton.setTitleColor(.white, for: .normal)
+        stopRecordButton.setTitle("", for: .normal) // Remove text, icon only
+        stopRecordButton.layer.cornerRadius = 40 // Increased from 30 to 40
+        stopRecordButton.clipsToBounds = true
+        
+        // Add shadow to stop button
+        stopRecordButton.layer.shadowColor = UIColor.black.cgColor
+        stopRecordButton.layer.shadowOffset = CGSize(width: 0, height: 2)
+        stopRecordButton.layer.shadowRadius = 4
+        stopRecordButton.layer.shadowOpacity = 0.2
+        stopRecordButton.layer.masksToBounds = false
+        
+        // Update button constraints to center them and prevent overlapping
+        NSLayoutConstraint.activate([
+            recordButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            recordButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -120),
+            recordButton.widthAnchor.constraint(equalToConstant: 80), // Increased from 60 to 80
+            recordButton.heightAnchor.constraint(equalToConstant: 80), // Increased from 60 to 80
+            
+            stopRecordButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            stopRecordButton.centerYAnchor.constraint(equalTo: recordButton.centerYAnchor),
+            stopRecordButton.widthAnchor.constraint(equalToConstant: 80), // Increased from 60 to 80
+            stopRecordButton.heightAnchor.constraint(equalToConstant: 80), // Increased from 60 to 80
+        ])
         
         // Style play translated audio button
         playTranslatedAudioButton.applyModernStyle()
@@ -148,11 +194,43 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
         transcriptionTextView.layer.cornerRadius = 12
         transcriptionTextView.clipsToBounds = true
         
+        // Add language indicator label
+        languageIndicatorLabel = UILabel()
+        languageIndicatorLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(languageIndicatorLabel)
+        
+        // Style the label
+        languageIndicatorLabel.textColor = .white
+        languageIndicatorLabel.font = .systemFont(ofSize: 14, weight: .medium)
+        languageIndicatorLabel.textAlignment = .center
+        updateLanguageIndicator()
+        
+        // Add constraints
+        NSLayoutConstraint.activate([
+            languageIndicatorLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            languageIndicatorLabel.topAnchor.constraint(equalTo: transcriptionTextView.bottomAnchor, constant: 8),
+            languageIndicatorLabel.bottomAnchor.constraint(equalTo: translationTextView.topAnchor, constant: -8)
+        ])
+        
         translationTextView.backgroundColor = UIColor.white.withAlphaComponent(0.1)
         translationTextView.textColor = .white
         translationTextView.font = .systemFont(ofSize: 16, weight: .regular)
         translationTextView.layer.cornerRadius = 12
         translationTextView.clipsToBounds = true
+        
+        // Adjust save button position to be below record/stop buttons
+        NSLayoutConstraint.activate([
+            saveRecordingButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 24),
+            saveRecordingButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -24),
+            saveRecordingButton.topAnchor.constraint(equalTo: recordButton.bottomAnchor, constant: 20),
+            saveRecordingButton.heightAnchor.constraint(equalToConstant: 50)
+        ])
+    }
+    
+    private func updateLanguageIndicator() {
+        let inputName = languageDisplayNames[inputLanguage] ?? inputLanguage
+        let outputName = languageDisplayNames[outputLanguage] ?? outputLanguage
+        languageIndicatorLabel.text = "\(inputName) → \(outputName)"
     }
     
     // MARK: - Speech Recognition Setup
@@ -396,7 +474,7 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
         NSLayoutConstraint.activate([
             saveRecordingButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 24),
             saveRecordingButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -24),
-            saveRecordingButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -24),
+            saveRecordingButton.topAnchor.constraint(equalTo: recordButton.bottomAnchor, constant: 20),
             saveRecordingButton.heightAnchor.constraint(equalToConstant: 50)
         ])
     }
@@ -493,6 +571,7 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
            let outputLang = userInfo["outputLanguage"] as? String {
             self.inputLanguage = inputLang
             self.outputLanguage = outputLang
+            updateLanguageIndicator()
         }
     }
 }

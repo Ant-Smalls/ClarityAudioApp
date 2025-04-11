@@ -137,3 +137,25 @@ After each phase:
 5. **Integrate Language Auto-Detection** – improve the transcription flow.
 6. **Update UI with Bottom Tabs** – connect 3-page navigation.
 7. **Check & Add Serbian Translation Support** – fallback if unsupported.
+
+
+## 🎙️ Save Recording Flow
+
+**Goal:** Once recording stops, allow the user to save the session into the SQLite database as a named container.
+
+### Steps:
+
+1. After `stopRecording()`, show a **"Save Recording"** button.
+2. On click, prompt user to **enter a custom name** (use modal or input dialog).
+3. On confirm:
+   - Validate name input (not empty).
+   - Create a `RecordingContainer` object with:
+     - Name
+     - Transcription
+     - Translation
+     - Timestamp
+   - Save the container to the **SQLite database**.
+4. Refresh the **Library View** so the new container appears immediately.
+5. Add **error handling**:
+   - Show a message if saving fails.
+   - Prevent duplicate or empty names if needed.
