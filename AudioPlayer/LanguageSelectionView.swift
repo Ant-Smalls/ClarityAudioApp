@@ -21,87 +21,135 @@ struct AnimatedButtonStyle: ButtonStyle {
 }
 
 struct LanguageSelectionView: View {
-    @State private var inputLanguage: String = "en-US"
-    @State private var outputLanguage: String = "es"
-    let languages = ["en-US", "es", "de", "pt-BR", "ja"]
+    @State private var inputLanguage: String = ""
+    @State private var outputLanguage: String = ""
+    @State private var shouldNavigate = false
+    
+    // Dictionary mapping language codes to their display names
+    let availableLanguages: [String: String] = [
+        "en-US": "English (US)",
+        "es": "Spanish",
+        "de": "German",
+        "pt-BR": "Portuguese (Brazil)",
+        "ja": "Japanese",
+        "fr": "French",
+        "it": "Italian",
+        "ru": "Russian"
+    ]
 
     var body: some View {
-        ZStack {
-            // A smooth gradient background using the defined primary, secondary, and tertiary colors.
-            LinearGradient(
-                gradient: Gradient(colors: [Color(hex: "#23252c"), Color(hex: "#40607e"), Color(hex: "#584d78")]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
-            
-            VStack(spacing: 20) {
-                // App logo image, now larger.
-                Image("AppLogo")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 250, height: 250)
-                    .padding(.bottom, 20)
+        NavigationView {
+            ZStack {
+                // Background gradient remains the same
+                LinearGradient(
+                    gradient: Gradient(colors: [Color(hex: "#23252c"), Color(hex: "#40607e"), Color(hex: "#584d78")]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
                 
-                // Title text.
-                Text("Select Input & Output Languages")
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
-                    .multilineTextAlignment(.center)
-                
-                // Input Language Picker.
-                Picker("Select Input Language", selection: $inputLanguage) {
-                    ForEach(languages, id: \.self) { language in
-                        Text(language)
-                            .foregroundColor(.white)
-                            .font(.system(size: 18, weight: .medium, design: .rounded))
+                VStack(spacing: 20) {
+                    // App logo image, now larger.
+                    Image("AppLogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 250, height: 250)
+                        .padding(.bottom, 20)
+                    
+                    // Title text.
+                    Text("Select Languages")
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                    
+                    // Input Language Menu
+                    Menu {
+                        ForEach(Array(availableLanguages.keys.sorted()), id: \.self) { code in
+                            Button(action: { inputLanguage = code }) {
+                                HStack {
+                                    Text(availableLanguages[code] ?? code)
+                                    if inputLanguage == code {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
+                        HStack {
+                            Text(inputLanguage.isEmpty ? "Select Input Language" : "Input: \(availableLanguages[inputLanguage] ?? inputLanguage)")
+                                .foregroundColor(.white)
+                            Spacer()
+                            Image(systemName: "chevron.down")
+                                .foregroundColor(.white)
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color(hex: "#40607e"))
+                        .cornerRadius(8)
                     }
-                }
-                .pickerStyle(MenuPickerStyle())
-                .padding()
-                .background(Color(hex: "#40607e"))
-                .cornerRadius(8)
-                
-                // Output Language Picker.
-                Picker("Select Output Language", selection: $outputLanguage) {
-                    ForEach(languages, id: \.self) { language in
-                        Text(language)
-                            .foregroundColor(.white)
-                            .font(.system(size: 18, weight: .medium, design: .rounded))
+                    
+                    // Output Language Menu
+                    Menu {
+                        ForEach(Array(availableLanguages.keys.sorted()), id: \.self) { code in
+                            Button(action: { outputLanguage = code }) {
+                                HStack {
+                                    Text(availableLanguages[code] ?? code)
+                                    if outputLanguage == code {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
+                        HStack {
+                            Text(outputLanguage.isEmpty ? "Select Output Language" : "Output: \(availableLanguages[outputLanguage] ?? outputLanguage)")
+                                .foregroundColor(.white)
+                            Spacer()
+                            Image(systemName: "chevron.down")
+                                .foregroundColor(.white)
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color(hex: "#40607e"))
+                        .cornerRadius(8)
                     }
+                    
+                    // Continue Button
+                    NavigationLink(
+                        destination: RecordView(inputLanguage: inputLanguage, outputLanguage: outputLanguage)
+                            .navigationBarHidden(true),
+                        isActive: $shouldNavigate
+                    ) { EmptyView() }
+                    
+                    Button(action: {
+                        if !inputLanguage.isEmpty && !outputLanguage.isEmpty {
+                            shouldNavigate = true
+                        }
+                    }) {
+                        Text("Continue")
+                            .font(.system(size: 20, weight: .semibold, design: .rounded))
+                    }
+                    .buttonStyle(AnimatedButtonStyle())
+                    .opacity(inputLanguage.isEmpty || outputLanguage.isEmpty ? 0.5 : 1.0)
+                    .disabled(inputLanguage.isEmpty || outputLanguage.isEmpty)
                 }
-                .pickerStyle(MenuPickerStyle())
-                .padding()
-                .background(Color(hex: "#40607e"))
-                .cornerRadius(8)
-                
-                // Continue Button.
-                Button(action: {
-                    navigateToMainView()
-                }) {
-                    Text("Continue")
-                        .font(.system(size: 20, weight: .semibold, design: .rounded))
-                }
-                .buttonStyle(AnimatedButtonStyle())
+                .padding(.horizontal, 20)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .padding(.top, 60)
             }
-            // Move the entire VStack toward the top while keeping it horizontally centered.
-            .padding(.horizontal, 20)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .padding(.top, 60) // Adjust this value for desired vertical placement.
+            .navigationBarHidden(true)
         }
     }
+}
 
-    func navigateToMainView() {
-        guard let sceneDelegate = UIApplication.shared.connectedScenes
-                .first(where: { $0.activationState == .foregroundActive })?.delegate as? SceneDelegate,
-              let navigationController = sceneDelegate.window?.rootViewController as? UINavigationController else {
-            print("❌ NavigationController not found")
-            return
-        }
-        let mainViewController = UIHostingController(rootView: ViewControllerWrapper(inputLanguage: inputLanguage, outputLanguage: outputLanguage))
-        DispatchQueue.main.async {
-            navigationController.pushViewController(mainViewController, animated: true)
-        }
+struct RecordView: View {
+    let inputLanguage: String
+    let outputLanguage: String
+    
+    var body: some View {
+        ViewControllerWrapper(inputLanguage: inputLanguage, outputLanguage: outputLanguage)
+            .navigationBarHidden(true)
+            .ignoresSafeArea()
     }
 }
 

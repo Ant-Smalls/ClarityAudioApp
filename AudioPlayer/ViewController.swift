@@ -68,6 +68,14 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
         saveRecordingButton.isHidden = true
         
         print("✅ Using Input Language: \(inputLanguage), Output Language: \(outputLanguage)")
+        
+        // Add observer for language changes
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleLanguageSelection),
+            name: Notification.Name("LanguagesSelected"),
+            object: nil
+        )
     }
     
     override func viewDidLayoutSubviews() {
@@ -477,6 +485,15 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
         )
         alert.addAction(UIAlertAction(title: "OK", style: .default))
         present(alert, animated: true)
+    }
+    
+    @objc private func handleLanguageSelection(_ notification: Notification) {
+        if let userInfo = notification.userInfo,
+           let inputLang = userInfo["inputLanguage"] as? String,
+           let outputLang = userInfo["outputLanguage"] as? String {
+            self.inputLanguage = inputLang
+            self.outputLanguage = outputLang
+        }
     }
 }
 
