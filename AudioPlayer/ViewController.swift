@@ -300,8 +300,31 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
         self.speechRecognizer = nil
         
         let finalText = self.transcriptionTextView.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        
+        // Always reset UI state first
+        UIView.animate(withDuration: 0.3) {
+            self.recordButton.alpha = 1
+            self.stopRecordButton.alpha = 0
+        }
+        
         if finalText.isEmpty {
-            print("⚠️ Ignoring empty final transcription. Nothing to translate.")
+            print("⚠️ No transcription detected.")
+            // Show a user-friendly message
+            let alert = UIAlertController(
+                title: "No Speech Detected",
+                message: "No speech was detected during the recording. Would you like to try again?",
+                preferredStyle: .alert
+            )
+            
+            alert.addAction(UIAlertAction(title: "Try Again", style: .default) { _ in
+                // Reset the text views
+                self.transcriptionTextView.text = ""
+                self.translationTextView.text = ""
+            })
+            
+            alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+            
+            present(alert, animated: true)
             return
         }
         
@@ -317,11 +340,8 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
             }
         }
         
-        UIView.animate(withDuration: 0.3) {
-            self.recordButton.alpha = 1
-            self.stopRecordButton.alpha = 0
-            self.saveRecordingButton.isHidden = false
-        }
+        // Show save button only if we have content
+        self.saveRecordingButton.isHidden = false
     }
     
     func startRealTimeTranscription() {
