@@ -7,6 +7,18 @@ class MainTabBarController: UITabBarController {
         super.viewDidLoad()
         setupViewControllers()
         setupAppearance()
+        
+        // Add observer for tab switching
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(switchToRecordTab),
+            name: Notification.Name("SwitchToRecordTab"),
+            object: nil
+        )
+    }
+    
+    @objc private func switchToRecordTab() {
+        self.selectedIndex = 1  // Index of the record tab
     }
     
     private func setupViewControllers() {
