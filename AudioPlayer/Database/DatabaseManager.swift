@@ -23,6 +23,7 @@ class DatabaseManager {
                 throw DatabaseError.notConnected
             }
             
+            // First create table if it doesn't exist
             let createTableString = """
             CREATE TABLE IF NOT EXISTS \(tableName) (
                 id TEXT PRIMARY KEY,
@@ -49,6 +50,24 @@ class DatabaseManager {
             } else {
                 throw DatabaseError.saveFailed
             }
+            
+            // Now add the isFavorite column if it doesn't exist
+            let alterTableString = """
+            ALTER TABLE \(tableName)
+            ADD COLUMN isFavorite INTEGER DEFAULT 0;
+            """
+            
+            var alterTableStatement: OpaquePointer?
+            defer { sqlite3_finalize(alterTableStatement) }
+            
+            if sqlite3_prepare_v2(db, alterTableString, -1, &alterTableStatement, nil) == SQLITE_OK {
+                if sqlite3_step(alterTableStatement) == SQLITE_DONE {
+                    print("✅ Added isFavorite column successfully")
+                } else {
+                    // Ignore error as it likely means the column already exists
+                    print("ℹ️ isFavorite column might already exist")
+                }
+            }
         } catch {
             print("❌ Database setup failed: \(error)")
         }
@@ -60,8 +79,9 @@ class DatabaseManager {
         let insertStatementString = """
         INSERT INTO \(tableName) (
             id, name, dateCreated, duration, audioFileName,
-            sourceLanguage, targetLanguage, transcription, translation
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+            sourceLanguage, targetLanguage, transcription, translation,
+            isFavorite
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         """
         
         var insertStatement: OpaquePointer?
@@ -78,6 +98,7 @@ class DatabaseManager {
             sqlite3_bind_text(insertStatement, 7, (recording.targetLanguage as NSString).utf8String, -1, nil)
             sqlite3_bind_text(insertStatement, 8, (recording.transcription as NSString).utf8String, -1, nil)
             sqlite3_bind_text(insertStatement, 9, (recording.translation as NSString).utf8String, -1, nil)
+            sqlite3_bind_int(insertStatement, 10, recording.isFavorite ? 1 : 0)
             
             if sqlite3_step(insertStatement) == SQLITE_DONE {
                 print("✅ Recording inserted successfully")
@@ -112,6 +133,7 @@ class DatabaseManager {
                 
                 let dateCreated = Date(timeIntervalSince1970: sqlite3_column_double(queryStatement, 2))
                 let duration = sqlite3_column_double(queryStatement, 3)
+                let isFavorite = sqlite3_column_int(queryStatement, 9) != 0
                 
                 let recording = RecordingSession(
                     id: id,
@@ -122,7 +144,8 @@ class DatabaseManager {
                     sourceLanguage: String(cString: sourceLanguage),
                     targetLanguage: String(cString: targetLanguage),
                     transcription: String(cString: transcription),
-                    translation: String(cString: translation)
+                    translation: String(cString: translation),
+                    isFavorite: isFavorite
                 )
                 recordings.append(recording)
             }
@@ -147,6 +170,30 @@ class DatabaseManager {
             }
         } else {
             throw DatabaseError.deleteFailed
+        }
+    }
+    
+    func toggleFavorite(for recordingId: UUID) throws {
+        guard let db = db else { throw DatabaseError.notConnected }
+        
+        let updateStatementString = """
+        UPDATE \(tableName)
+        SET isFavorite = ((isFavorite | 1) - (isFavorite & 1))
+        WHERE id = ?;
+        """
+        
+        var updateStatement: OpaquePointer?
+        defer { sqlite3_finalize(updateStatement) }
+        
+        if sqlite3_prepare_v2(db, updateStatementString, -1, &updateStatement, nil) == SQLITE_OK {
+            let idString = recordingId.uuidString
+            sqlite3_bind_text(updateStatement, 1, (idString as NSString).utf8String, -1, nil)
+            
+            if sqlite3_step(updateStatement) != SQLITE_DONE {
+                throw DatabaseError.saveFailed
+            }
+        } else {
+            throw DatabaseError.saveFailed
         }
     }
 }

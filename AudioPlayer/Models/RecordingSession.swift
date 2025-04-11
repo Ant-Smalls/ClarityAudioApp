@@ -10,7 +10,7 @@ struct RecordingSession: Identifiable {
     let targetLanguage: String
     let transcription: String
     let translation: String
-    var isStarred: Bool = false
+    var isFavorite: Bool
     
     init(id: UUID = UUID(), 
          name: String, 
@@ -20,7 +20,8 @@ struct RecordingSession: Identifiable {
          sourceLanguage: String,
          targetLanguage: String,
          transcription: String,
-         translation: String) {
+         translation: String,
+         isFavorite: Bool = false) {
         self.id = id
         self.name = name
         self.dateCreated = dateCreated
@@ -30,5 +31,6 @@ struct RecordingSession: Identifiable {
         self.targetLanguage = targetLanguage
         self.transcription = transcription
         self.translation = translation
+        self.isFavorite = isFavorite
     }
 } 
