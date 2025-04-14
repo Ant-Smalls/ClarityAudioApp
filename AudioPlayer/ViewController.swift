@@ -9,6 +9,7 @@ import AVFoundation
 import Speech
 import Translation
 import SwiftUI
+import Foundation
 
 class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlayerDelegate {
     
@@ -58,6 +59,9 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
     private var currentRecordingDuration: TimeInterval = 0
     private var recordingStartTime: Date?
     
+    // Add currentRecording property
+    private var currentRecording: RecordingSession?
+    
     // MARK: - UI Elements (Connected via Storyboard)
     @IBOutlet weak var recordButton: UIButton!
     @IBOutlet weak var stopRecordButton: UIButton!
@@ -67,6 +71,7 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
     
     // Remove IBOutlet and make it a regular property
     private var saveRecordingButton: UIButton!
+    private var playTranslationButton: UIButton!
     
     // MARK: - Lifecycle Methods
     override func viewDidLoad() {
@@ -75,6 +80,7 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
         setupAudioSession()
         requestSpeechPermission()
         setupSaveButton()
+        setupPlayButton()
         styleUI()
         
         // Set initial button states.
@@ -340,8 +346,9 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
             }
         }
         
-        // Show save button only if we have content
-        self.saveRecordingButton.isHidden = false
+        // Show both save and play buttons after recording stops
+        saveRecordingButton.isHidden = false
+        playTranslationButton.isHidden = false
     }
     
     func startRealTimeTranscription() {
@@ -599,6 +606,100 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
             self.outputLanguage = outputLang
             updateLanguageIndicator()
         }
+    }
+    
+    @objc func handlePlayTranslation() {
+        // Disable button while processing
+        playTranslationButton.isEnabled = false
+        
+        Task {
+            do {
+                if finalTranslatedText.isEmpty {
+                    showAlert(title: "Error", message: "No translation available")
+                    playTranslationButton.isEnabled = true
+                    return
+                }
+                
+                // Show loading state
+                DispatchQueue.main.async {
+                    self.playTranslationButton.setTitle("Generating...", for: .normal)
+                }
+                
+                let audioData = try await ElevenLabsService.shared.synthesizeSpeech(text: finalTranslatedText)
+                
+                // Play the audio
+                try AVAudioSession.sharedInstance().setCategory(.playback)
+                try AVAudioSession.sharedInstance().setActive(true)
+                
+                let audioPlayer = try AVAudioPlayer(data: audioData)
+                self.audioPlayer = audioPlayer
+                audioPlayer.delegate = self
+                audioPlayer.prepareToPlay()
+                audioPlayer.play()
+                
+                // Update button state
+                DispatchQueue.main.async {
+                    self.playTranslationButton.setTitle("Playing...", for: .normal)
+                }
+                
+            } catch {
+                print("❌ Speech synthesis error:", error)
+                DispatchQueue.main.async {
+                    self.showAlert(title: "Error", 
+                                 message: "Failed to synthesize speech. Please check your API key and try again.")
+                    self.playTranslationButton.setTitle("Play Translation", for: .normal)
+                    self.playTranslationButton.isEnabled = true
+                }
+            }
+        }
+    }
+    
+    // MARK: - AVAudioPlayerDelegate
+    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        DispatchQueue.main.async {
+            self.playTranslationButton.setTitle("Play Translation", for: .normal)
+            self.playTranslationButton.isEnabled = true
+        }
+    }
+    
+    func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
+        DispatchQueue.main.async {
+            self.showAlert(title: "Error", message: "Failed to play audio: \(error?.localizedDescription ?? "Unknown error")")
+            self.playTranslationButton.setTitle("Play Translation", for: .normal)
+            self.playTranslationButton.isEnabled = true
+        }
+    }
+    
+    func setupPlayButton() {
+        playTranslationButton = UIButton()
+        playTranslationButton.applyModernStyle()
+        playTranslationButton.setImage(UIImage(systemName: "play.fill"), for: .normal)
+        playTranslationButton.setTitle("Play Translation", for: .normal)
+        playTranslationButton.imageEdgeInsets = UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 8)
+        playTranslationButton.isHidden = true
+        
+        view.addSubview(playTranslationButton)
+        playTranslationButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            playTranslationButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            playTranslationButton.topAnchor.constraint(equalTo: saveRecordingButton.bottomAnchor, constant: 16),
+            playTranslationButton.widthAnchor.constraint(equalToConstant: 200),
+            playTranslationButton.heightAnchor.constraint(equalToConstant: 50)
+        ])
+        
+        playTranslationButton.addTarget(self, action: #selector(handlePlayTranslation), for: .touchUpInside)
+    }
+    
+    // Add showAlert method
+    private func showAlert(title: String, message: String) {
+        let alert = UIAlertController(
+            title: title,
+            message: message,
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
     }
 }
 

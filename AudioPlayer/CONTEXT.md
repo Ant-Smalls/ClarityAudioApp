@@ -159,3 +159,32 @@ After each phase:
 5. Add **error handling**:
    - Show a message if saving fails.
    - Prevent duplicate or empty names if needed.
+
+
+   ## 🗣️ Eleven Labs Voice Synthesis Integration
+
+**Goal:** Use Eleven Labs to convert translated text into audio and play it back via a "Play Translation" button.
+
+### Steps:
+
+1. After translation is complete:
+   - Send **translated text** to the Eleven Labs API.
+   - Set desired **voice ID** (can be default or user-selectable in future).
+   - Configure request with appropriate **stability**, **clarity**, and **model** params.
+
+2. On API success:
+   - Receive **audio file (MP3 or WAV)** as a response.
+   - Store audio in temporary local storage (e.g., cache directory).
+   - Set a flag `isAudioReady = true`.
+
+3. In the Record View:
+   - Add a **"Play Translation"** button below transcript display.
+   - Initially disable the button (`isAudioReady = false`).
+   - Once audio is ready, **light up/enable** the button.
+
+4. On button click:
+   - Use relevant audio player to **play the audio** file.
+
+5. Add **error handling**:
+   - Handle failed API requests gracefully.
+   - Optionally show a loading spinner or "Generating audio..." feedback.

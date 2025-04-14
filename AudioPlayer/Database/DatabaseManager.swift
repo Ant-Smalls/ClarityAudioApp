@@ -23,7 +23,7 @@ class DatabaseManager {
                 throw DatabaseError.notConnected
             }
             
-            // First create table if it doesn't exist
+            // First create table if it doesn't exist with all columns including isFavorite
             let createTableString = """
             CREATE TABLE IF NOT EXISTS \(tableName) (
                 id TEXT PRIMARY KEY,
@@ -34,7 +34,8 @@ class DatabaseManager {
                 sourceLanguage TEXT,
                 targetLanguage TEXT,
                 transcription TEXT,
-                translation TEXT
+                translation TEXT,
+                isFavorite INTEGER DEFAULT 0
             );
             """
             
@@ -49,24 +50,6 @@ class DatabaseManager {
                 }
             } else {
                 throw DatabaseError.saveFailed
-            }
-            
-            // Now add the isFavorite column if it doesn't exist
-            let alterTableString = """
-            ALTER TABLE \(tableName)
-            ADD COLUMN isFavorite INTEGER DEFAULT 0;
-            """
-            
-            var alterTableStatement: OpaquePointer?
-            defer { sqlite3_finalize(alterTableStatement) }
-            
-            if sqlite3_prepare_v2(db, alterTableString, -1, &alterTableStatement, nil) == SQLITE_OK {
-                if sqlite3_step(alterTableStatement) == SQLITE_DONE {
-                    print("✅ Added isFavorite column successfully")
-                } else {
-                    // Ignore error as it likely means the column already exists
-                    print("ℹ️ isFavorite column might already exist")
-                }
             }
         } catch {
             print("❌ Database setup failed: \(error)")
