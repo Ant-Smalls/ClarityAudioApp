@@ -23,6 +23,7 @@ struct AnimatedButtonStyle: ButtonStyle {
 struct LanguageSelectionView: View {
     @State private var inputLanguage: String = ""
     @State private var outputLanguage: String = ""
+    @State private var selectedGender: String = UserDefaults.standard.string(forKey: "selectedVoiceGender") ?? "male"
     
     // Dictionary mapping language codes to their display names
     let availableLanguages: [String: String] = [
@@ -33,7 +34,8 @@ struct LanguageSelectionView: View {
         "ja": "Japanese",
         "fr": "French",
         "it": "Italian",
-        "ru": "Russian"
+        "ru": "Russian",
+        "ko": "Korean"
     ]
 
     var body: some View {
@@ -112,18 +114,55 @@ struct LanguageSelectionView: View {
                     .cornerRadius(8)
                 }
                 
+                // Voice Gender Selection
+                VStack(spacing: 12) {
+                    Text("Voice Gender")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                    
+                    HStack(spacing: 12) {
+                        // Male Button
+                        Button(action: { selectedGender = "male" }) {
+                            HStack {
+                                Image(systemName: "person.fill")
+                                Text("Male")
+                            }
+                        }
+                        .buttonStyle(AnimatedButtonStyle())
+                        .opacity(selectedGender == "male" ? 1.0 : 0.7)
+                        
+                        // Female Button
+                        Button(action: { selectedGender = "female" }) {
+                            HStack {
+                                Image(systemName: "person.fill")
+                                Text("Female")
+                            }
+                        }
+                        .buttonStyle(AnimatedButtonStyle())
+                        .opacity(selectedGender == "female" ? 1.0 : 0.7)
+                    }
+                }
+                .padding(.top, 8)
+                
                 // Continue Button
                 Button(action: {
                     if !inputLanguage.isEmpty && !outputLanguage.isEmpty {
-                        // Post notification with selected languages
+                        // Post notification with selected languages and gender
                         NotificationCenter.default.post(
                             name: Notification.Name("LanguagesSelected"),
                             object: nil,
                             userInfo: [
                                 "inputLanguage": inputLanguage,
-                                "outputLanguage": outputLanguage
+                                "outputLanguage": outputLanguage,
+                                "selectedGender": selectedGender
                             ]
                         )
+                        
+                        // Save selections to UserDefaults
+                        UserDefaults.standard.set(inputLanguage, forKey: "selectedInputLanguage")
+                        UserDefaults.standard.set(outputLanguage, forKey: "selectedOutputLanguage")
+                        UserDefaults.standard.set(selectedGender, forKey: "selectedVoiceGender")
+                        UserDefaults.standard.synchronize()
                         
                         // Post notification to switch tabs
                         NotificationCenter.default.post(

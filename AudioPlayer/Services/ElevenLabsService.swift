@@ -12,8 +12,8 @@ class ElevenLabsService {
     
     private init() {}
     
-    func synthesizeSpeech(text: String) async throws -> Data {
-        let url = "\(APIConfig.elevenLabsBaseURL)/\(APIConfig.elevenLabsVoiceID)"
+    func synthesizeSpeech(text: String, voiceId: String = APIConfig.elevenLabsVoiceID) async throws -> Data {
+        let url = "\(APIConfig.elevenLabsBaseURL)/\(voiceId)"
         guard let requestUrl = URL(string: url) else {
             throw ElevenLabsError.invalidURL
         }

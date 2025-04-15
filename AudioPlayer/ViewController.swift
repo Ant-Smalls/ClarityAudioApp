@@ -36,7 +36,8 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
         "ja": "Japanese",
         "fr": "French",
         "it": "Italian",
-        "ru": "Russian"
+        "ru": "Russian",
+        "ko": "Korean"
     ]
     
     // Language indicator label
@@ -64,6 +65,54 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
     
     // Add currentRecording property
     private var currentRecording: RecordingSession?
+    
+    // Add voice IDs for each language and gender
+    private struct VoiceID {
+        let male: String
+        let female: String
+    }
+    
+    private let languageVoiceIds: [String: VoiceID] = [
+        "en-US": VoiceID(
+            male: "NOpBlnGInO9m6vDvFkFC", // good
+            female: "kdmDKE6EkgrWrrykO9Qt" // good
+        ),
+        "es": VoiceID(
+            male: "aAtR3uAVlEaQIWGd9EDO", // good
+            female: "br0MPoLVxuslVxf61qHn" // good
+        ),
+        "de": VoiceID(
+            male: "5euSC8RarC3AHrZ242sr", // good
+            female: "yUy9CCX9brt8aPVvIWy3" // good
+        ),
+        "pt-BR": VoiceID(
+            male: "7u8qsX4HQsSHJ0f8xsQZ",
+            female: "cyD08lEy76q03ER1jZ7y"
+        ),
+        "ja": VoiceID(
+            male: "3JDquces8E8bkmvbh6Bc",
+            female: "8EkOjt4xTPGMclNlh1pk"
+        ),
+        "fr": VoiceID(
+            male: "RTFg9niKcgGLDwa3RFlz",
+            female: "WQKwBV2Uzw1gSGr69N8I"
+        ),
+        "it": VoiceID(
+            male: "uScy1bXtKz8vPzfdFsFw",
+            female: "201hPjDVu4Q5DUV7tMQJ"
+        ),
+        "ru": VoiceID(
+            male: "3EuKHIEZbSzrHGNmdYsx",
+            female: "tOo2BJ74frmnPadsDNIi"
+        ),
+        "ko": VoiceID(
+            male: "FQ3MuLxZh0jHcZmA5vW1",
+            female: "uyVNoMrnUku1dZyVEXwD" // Using male voice as fallback for Korean
+        )
+    ]
+    
+    // Add selected gender property
+    private var selectedGender: String = UserDefaults.standard.string(forKey: "selectedVoiceGender") ?? "male"
     
     // MARK: - UI Elements (Connected via Storyboard)
     @IBOutlet weak var recordButton: UIButton!
@@ -264,21 +313,36 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
             self.languageSwitchButton.transform = self.languageSwitchButton.transform.rotated(by: .pi)
         }
         
-        // First, clean up any existing audio session
+        // First, clean up any existing audio session and resources
         if audioEngine.isRunning {
             audioEngine.stop()
             audioEngine.inputNode.removeTap(onBus: 0)
-            recognitionRequest?.endAudio()
-            recognitionTask?.cancel()
-            recognitionTask = nil
-            recognitionRequest = nil
         }
         
-        // Reset the audio session
+        if let recognitionTask = recognitionTask {
+            recognitionTask.cancel()
+            self.recognitionTask = nil
+        }
+        
+        recognitionRequest?.endAudio()
+        recognitionRequest = nil
+        
+        // Deactivate and reactivate audio session
         do {
             try AVAudioSession.sharedInstance().setActive(false)
+            
+            // Reset audio session category
+            try AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .default)
             try AVAudioSession.sharedInstance().setActive(true)
-            try AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .default, options: [.allowBluetooth, .allowBluetoothA2DP])
+            
+            // Configure audio session
+            try AVAudioSession.sharedInstance().setCategory(.playAndRecord, 
+                mode: .default,
+                options: [.allowBluetooth, .allowBluetoothA2DP, .defaultToSpeaker])
+            
+            // Set preferred sample rate and I/O buffer duration
+            try AVAudioSession.sharedInstance().setPreferredSampleRate(44100.0)
+            try AVAudioSession.sharedInstance().setPreferredIOBufferDuration(0.005)
         } catch {
             print("❌ Failed to reset audio session: \(error)")
         }
@@ -309,6 +373,10 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
         
         // Initialize new speech recognizer for the new language
         speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: inputLanguage))
+        
+        // Reset text views
+        transcriptionTextView.text = ""
+        translationTextView.text = ""
     }
     
     private func updateLanguageIndicator() {
@@ -354,6 +422,27 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
             // Clear text views before starting new recording
             transcriptionTextView.text = ""
             translationTextView.text = ""
+            
+            // Reset audio engine and configuration
+            audioEngine.stop()
+            audioEngine.reset()
+            
+            // Remove any existing tap
+            if audioEngine.inputNode.numberOfInputs > 0 {
+                audioEngine.inputNode.removeTap(onBus: 0)
+            }
+            
+            // Reset audio session
+            do {
+                try AVAudioSession.sharedInstance().setActive(false)
+                try AVAudioSession.sharedInstance().setCategory(.playAndRecord, 
+                    mode: .measurement,
+                    options: [.allowBluetooth, .allowBluetoothA2DP, .defaultToSpeaker])
+                try AVAudioSession.sharedInstance().setActive(true)
+            } catch {
+                print("❌ Failed to reset audio session: \(error)")
+                return
+            }
             
             startRealTimeTranscription()
             recordingStartTime = Date()
@@ -428,55 +517,72 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
     }
     
     func startRealTimeTranscription() {
+        // Initialize speech recognizer with current input language
         speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: inputLanguage))
         guard let speechRecognizer = speechRecognizer else {
             print("❌ Speech recognizer not available for language: \(inputLanguage)")
+            showAlert(title: "Error", message: "Speech recognition is not available for \(languageDisplayNames[inputLanguage] ?? inputLanguage)")
             return
         }
         
+        // Create new recognition request
         recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
-        recognitionRequest?.shouldReportPartialResults = true
+        guard let recognitionRequest = recognitionRequest else {
+            print("❌ Unable to create recognition request")
+            return
+        }
+        recognitionRequest.shouldReportPartialResults = true
         
+        // Configure audio session
         let inputNode = audioEngine.inputNode
-        inputNode.removeTap(onBus: 0)
+        let recordingFormat = inputNode.outputFormat(forBus: 0)
         
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: inputNode.outputFormat(forBus: 0)) { buffer, when in
+        // Install tap on input node
+        inputNode.installTap(onBus: 0,
+                           bufferSize: 1024,
+                           format: recordingFormat) { (buffer: AVAudioPCMBuffer, when: AVAudioTime) in
             self.recognitionRequest?.append(buffer)
         }
         
+        // Prepare and start audio engine
         audioEngine.prepare()
         do {
             try audioEngine.start()
             print("🎤 Audio engine started for transcription.")
         } catch {
             print("❌ Failed to start audio engine:", error)
+            showAlert(title: "Error", message: "Could not start audio engine: \(error.localizedDescription)")
+            return
         }
         
-        recognitionTask = speechRecognizer.recognitionTask(with: recognitionRequest!) { result, error in
+        // Start recognition task
+        recognitionTask = speechRecognizer.recognitionTask(with: recognitionRequest) { result, error in
+            var isFinal = false
+            
             if let result = result {
                 let transcribedText = result.bestTranscription.formattedString
                 print("📝 Transcribed: \(transcribedText)")
-                
-                if self.recognitionTask == nil {
-                    print("⚠️ Skipping translation: Recognition was canceled.")
-                    return
-                }
+                isFinal = result.isFinal
                 
                 DispatchQueue.main.async {
                     self.transcriptionTextView.text = transcribedText
-                    self.presentTranslationView(with: transcribedText)
+                    if !transcribedText.isEmpty {
+                        self.presentTranslationView(with: transcribedText)
+                    }
                 }
             }
             
-            if let error = error as NSError? {
-                if error.code == 1110 {
-                    print("⚠️ Ignoring 'No speech detected' error (User stopped speaking).")
-                    return
-                } else if error.code == 301 {
-                    print("⚠️ Ignoring 'Recognition request was canceled' error (User stopped recording).")
-                    return
+            if error != nil || isFinal {
+                if let error = error as NSError? {
+                    if error.code == 1110 {
+                        print("⚠️ Ignoring 'No speech detected' error (User stopped speaking).")
+                        return
+                    } else if error.code == 301 {
+                        print("⚠️ Ignoring 'Recognition request was canceled' error (User stopped recording).")
+                        return
+                    }
+                    print("❌ Transcription error: \(error.localizedDescription) \(error.code)")
                 }
-                print("❌ Transcription error: \(error.localizedDescription) \(error.code)")
             }
         }
     }
@@ -677,13 +783,17 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
     @objc private func handleLanguageSelection(_ notification: Notification) {
         if let userInfo = notification.userInfo,
            let inputLang = userInfo["inputLanguage"] as? String,
-           let outputLang = userInfo["outputLanguage"] as? String {
+           let outputLang = userInfo["outputLanguage"] as? String,
+           let gender = userInfo["selectedGender"] as? String {
+            
             self.inputLanguage = inputLang
             self.outputLanguage = outputLang
+            self.selectedGender = gender
             
-            // Save the selected languages to UserDefaults
+            // Save the selected languages and gender to UserDefaults
             UserDefaults.standard.set(inputLang, forKey: "selectedInputLanguage")
             UserDefaults.standard.set(outputLang, forKey: "selectedOutputLanguage")
+            UserDefaults.standard.set(gender, forKey: "selectedVoiceGender")
             UserDefaults.standard.synchronize()
             
             updateLanguageIndicator()
@@ -707,7 +817,15 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
                     self.playTranslationButton.setTitle("Generating...", for: .normal)
                 }
                 
-                let audioData = try await ElevenLabsService.shared.synthesizeSpeech(text: finalTranslatedText)
+                // Get the appropriate voice ID for the output language and gender
+                let voiceData = languageVoiceIds[outputLanguage] ?? languageVoiceIds["en-US"]!
+                let voiceId = selectedGender == "male" ? voiceData.male : voiceData.female
+                
+                // Pass the voice ID to the speech synthesis method
+                let audioData = try await ElevenLabsService.shared.synthesizeSpeech(
+                    text: finalTranslatedText,
+                    voiceId: voiceId
+                )
                 
                 // Play the audio
                 try AVAudioSession.sharedInstance().setCategory(.playback)
