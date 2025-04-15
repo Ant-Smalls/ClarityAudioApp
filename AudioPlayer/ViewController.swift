@@ -22,8 +22,8 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
     var recordedFiles: [URL] = []
     
     // Dynamic language selections.
-    var inputLanguage: String = "en-US"
-    var outputLanguage: String = "es"
+    var inputLanguage: String = UserDefaults.standard.string(forKey: "selectedInputLanguage") ?? "en-US"
+    var outputLanguage: String = UserDefaults.standard.string(forKey: "selectedOutputLanguage") ?? "es"
     var finalTranscriptionText: String = ""
     var finalTranslatedText: String = ""
     
@@ -41,6 +41,9 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
     
     // Language indicator label
     private var languageIndicatorLabel: UILabel!
+    
+    // Add language switch button
+    private var languageSwitchButton: UIButton!
     
     var speechRecognizer: SFSpeechRecognizer?
     var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
@@ -208,23 +211,8 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
         translationTextView.clipsToBounds = true
         translationTextView.isEditable = false
         
-        // Add language indicator label
-        languageIndicatorLabel = UILabel()
-        languageIndicatorLabel.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(languageIndicatorLabel)
-        
-        // Style the label
-        languageIndicatorLabel.textColor = .white
-        languageIndicatorLabel.font = .systemFont(ofSize: 14, weight: .medium)
-        languageIndicatorLabel.textAlignment = .center
-        updateLanguageIndicator()
-        
-        // Add constraints
-        NSLayoutConstraint.activate([
-            languageIndicatorLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            languageIndicatorLabel.topAnchor.constraint(equalTo: transcriptionTextView.bottomAnchor, constant: 8),
-            languageIndicatorLabel.bottomAnchor.constraint(equalTo: translationTextView.topAnchor, constant: -8)
-        ])
+        // Remove old language indicator setup and constraints
+        setupLanguageIndicator()
         
         // Adjust save button position to be below record/stop buttons
         NSLayoutConstraint.activate([
@@ -233,6 +221,94 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
             saveRecordingButton.topAnchor.constraint(equalTo: recordButton.bottomAnchor, constant: 20),
             saveRecordingButton.heightAnchor.constraint(equalToConstant: 50)
         ])
+    }
+    
+    private func setupLanguageIndicator() {
+        // Create stack view to hold label and switch button
+        let stackView = UIStackView()
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        stackView.axis = .horizontal
+        stackView.alignment = .center
+        stackView.spacing = 8
+        view.addSubview(stackView)
+        
+        // Setup language indicator label
+        languageIndicatorLabel = UILabel()
+        languageIndicatorLabel.textColor = .white
+        languageIndicatorLabel.font = .systemFont(ofSize: 14, weight: .medium)
+        languageIndicatorLabel.textAlignment = .center
+        
+        // Setup switch button
+        languageSwitchButton = UIButton(type: .system)
+        languageSwitchButton.setImage(UIImage(systemName: "arrow.left.arrow.right"), for: .normal)
+        languageSwitchButton.tintColor = .white
+        languageSwitchButton.addTarget(self, action: #selector(handleLanguageSwitch), for: .touchUpInside)
+        
+        // Add both to stack view
+        stackView.addArrangedSubview(languageIndicatorLabel)
+        stackView.addArrangedSubview(languageSwitchButton)
+        
+        // Add constraints for stack view
+        NSLayoutConstraint.activate([
+            stackView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            stackView.topAnchor.constraint(equalTo: transcriptionTextView.bottomAnchor, constant: 8),
+            stackView.bottomAnchor.constraint(equalTo: translationTextView.topAnchor, constant: -8)
+        ])
+        
+        updateLanguageIndicator()
+    }
+    
+    @objc private func handleLanguageSwitch() {
+        // Add quick rotation animation to the switch button
+        UIView.animate(withDuration: 0.15, delay: 0, options: .curveEaseInOut) {
+            self.languageSwitchButton.transform = self.languageSwitchButton.transform.rotated(by: .pi)
+        }
+        
+        // First, clean up any existing audio session
+        if audioEngine.isRunning {
+            audioEngine.stop()
+            audioEngine.inputNode.removeTap(onBus: 0)
+            recognitionRequest?.endAudio()
+            recognitionTask?.cancel()
+            recognitionTask = nil
+            recognitionRequest = nil
+        }
+        
+        // Reset the audio session
+        do {
+            try AVAudioSession.sharedInstance().setActive(false)
+            try AVAudioSession.sharedInstance().setActive(true)
+            try AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .default, options: [.allowBluetooth, .allowBluetoothA2DP])
+        } catch {
+            print("❌ Failed to reset audio session: \(error)")
+        }
+        
+        // Swap languages
+        let tempLang = inputLanguage
+        inputLanguage = outputLanguage
+        outputLanguage = tempLang
+        
+        // Save the swapped languages to UserDefaults
+        UserDefaults.standard.set(inputLanguage, forKey: "selectedInputLanguage")
+        UserDefaults.standard.set(outputLanguage, forKey: "selectedOutputLanguage")
+        UserDefaults.standard.synchronize()
+        
+        // Update UI
+        updateLanguageIndicator()
+        
+        // Post notification for language change
+        let userInfo: [String: String] = [
+            "inputLanguage": inputLanguage,
+            "outputLanguage": outputLanguage
+        ]
+        NotificationCenter.default.post(
+            name: Notification.Name("LanguagesSelected"),
+            object: nil,
+            userInfo: userInfo
+        )
+        
+        // Initialize new speech recognizer for the new language
+        speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: inputLanguage))
     }
     
     private func updateLanguageIndicator() {
@@ -604,6 +680,12 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
            let outputLang = userInfo["outputLanguage"] as? String {
             self.inputLanguage = inputLang
             self.outputLanguage = outputLang
+            
+            // Save the selected languages to UserDefaults
+            UserDefaults.standard.set(inputLang, forKey: "selectedInputLanguage")
+            UserDefaults.standard.set(outputLang, forKey: "selectedOutputLanguage")
+            UserDefaults.standard.synchronize()
+            
             updateLanguageIndicator()
         }
     }
