@@ -29,10 +29,10 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
     
     // Language display names
     private let languageDisplayNames: [String: String] = [
-        "en-US": "English",
+        "en": "English",
         "es": "Spanish",
         "de": "German",
-        "pt-BR": "Portuguese",
+        "pt": "Portuguese",
         "ja": "Japanese",
         "fr": "French",
         "it": "Italian",
@@ -112,6 +112,9 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
     // Add selected gender property
     private var selectedGender: String = UserDefaults.standard.string(forKey: "selectedVoiceGender") ?? "male"
     
+    // Add property for language detection state
+    private var isLanguageDetectionEnabled: Bool = UserDefaults.standard.bool(forKey: "isLanguageDetectionEnabled")
+    
     // MARK: - UI Elements (Connected via Storyboard)
     @IBOutlet weak var recordButton: UIButton!
     @IBOutlet weak var stopRecordButton: UIButton!
@@ -146,6 +149,16 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
             self,
             selector: #selector(handleLanguageSelection),
             name: Notification.Name("LanguagesSelected"),
+            object: nil
+        )
+        
+        setupDetectionStatusLabel()
+        
+        // Add observer for language detection toggle
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleLanguageDetectionToggle),
+            name: Notification.Name("LanguageDetectionToggled"),
             object: nil
         )
     }
@@ -373,8 +386,8 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
     }
     
     private func updateLanguageIndicator() {
-        let inputName = languageDisplayNames[inputLanguage] ?? inputLanguage
-        let outputName = languageDisplayNames[outputLanguage] ?? outputLanguage
+        let inputName = languageDisplayNames[inputLanguage.split(separator: "-").first?.description ?? inputLanguage] ?? inputLanguage
+        let outputName = languageDisplayNames[outputLanguage.split(separator: "-").first?.description ?? outputLanguage] ?? outputLanguage
         languageIndicatorLabel.text = "\(inputName) → \(outputName)"
     }
     
@@ -508,6 +521,9 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
                 print("⚠️ No translated text available for audio generation.")
             }
         }
+        
+        // Hide detection status label when stopping
+        detectionStatusLabel.isHidden = true
     }
     
     func startRealTimeTranscription() {
@@ -538,46 +554,49 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
             self.recognitionRequest?.append(buffer)
         }
         
-        // Prepare and start audio engine
-        audioEngine.prepare()
-        do {
-            try audioEngine.start()
-            print("🎤 Audio engine started for transcription.")
-        } catch {
-            print("❌ Failed to start audio engine:", error)
-            showAlert(title: "Error", message: "Could not start audio engine: \(error.localizedDescription)")
-            return
-        }
-        
         // Start recognition task
-        recognitionTask = speechRecognizer.recognitionTask(with: recognitionRequest) { result, error in
-            var isFinal = false
+        recognitionTask = speechRecognizer.recognitionTask(with: recognitionRequest) { [weak self] result, error in
+            guard let self = self else { return }
             
             if let result = result {
                 let transcribedText = result.bestTranscription.formattedString
-                print("📝 Transcribed: \(transcribedText)")
-                isFinal = result.isFinal
-                
                 DispatchQueue.main.async {
                     self.transcriptionTextView.text = transcribedText
+                    
+                    // Only perform language detection if enabled
+                    if self.isLanguageDetectionEnabled && transcribedText.split(separator: " ").count >= 3 {
+                        self.languageDetectionViewModel.processTranscription(transcribedText)
+                        if let detectedLanguage = self.languageDetectionViewModel.detectedLanguage {
+                            self.updateDetectionStatus(with: detectedLanguage.name)
+                            
+                            // Only show language mismatch alert if detection is enabled
+                            if detectedLanguage.code != self.inputLanguage.split(separator: "-").first?.description {
+                                self.showLanguageMismatchAlert(detectedLanguage: detectedLanguage.name)
+                            }
+                        }
+                    }
+                    
+                    // Update translation in real-time
                     if !transcribedText.isEmpty {
                         self.presentTranslationView(with: transcribedText)
                     }
                 }
             }
             
-            if error != nil || isFinal {
-                if let error = error as NSError? {
-                    if error.code == 1110 {
-                        print("⚠️ Ignoring 'No speech detected' error (User stopped speaking).")
-                        return
-                    } else if error.code == 301 {
-                        print("⚠️ Ignoring 'Recognition request was canceled' error (User stopped recording).")
-                        return
-                    }
-                    print("❌ Transcription error: \(error.localizedDescription) \(error.code)")
-                }
+            if error != nil {
+                self.audioEngine.stop()
+                self.recognitionRequest?.endAudio()
+                self.detectionStatusLabel.isHidden = true
             }
+        }
+        
+        // Prepare and start audio engine
+        audioEngine.prepare()
+        
+        do {
+            try audioEngine.start()
+        } catch {
+            print("❌ Audio engine failed to start: \(error)")
         }
     }
     
@@ -841,18 +860,15 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
         if let userInfo = notification.userInfo,
            let inputLang = userInfo["inputLanguage"] as? String,
            let outputLang = userInfo["outputLanguage"] as? String,
-           let gender = userInfo["selectedGender"] as? String {
+           let gender = userInfo["selectedGender"] as? String,
+           let isDetectionEnabled = userInfo["isLanguageDetectionEnabled"] as? Bool {
             
             self.inputLanguage = inputLang
             self.outputLanguage = outputLang
             self.selectedGender = gender
+            self.isLanguageDetectionEnabled = isDetectionEnabled
             
-            // Save the selected languages and gender to UserDefaults
-            UserDefaults.standard.set(inputLang, forKey: "selectedInputLanguage")
-            UserDefaults.standard.set(outputLang, forKey: "selectedOutputLanguage")
-            UserDefaults.standard.set(gender, forKey: "selectedVoiceGender")
-            UserDefaults.standard.synchronize()
-            
+            print("✅ Using Input Language: \(inputLang), Output Language: \(outputLang), Detection Enabled: \(isDetectionEnabled)")
             updateLanguageIndicator()
         }
     }
@@ -903,6 +919,120 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
         )
         alert.addAction(UIAlertAction(title: "OK", style: .default))
         present(alert, animated: true)
+    }
+    
+    private let languageDetectionViewModel = LanguageDetectionViewModel()
+    private var detectionStatusLabel: UILabel!
+    
+    func setupDetectionStatusLabel() {
+        detectionStatusLabel = UILabel()
+        detectionStatusLabel.translatesAutoresizingMaskIntoConstraints = false
+        detectionStatusLabel.textColor = .white
+        detectionStatusLabel.font = .systemFont(ofSize: 14, weight: .medium)
+        detectionStatusLabel.textAlignment = .center
+        detectionStatusLabel.backgroundColor = UIColor(hex: "#40607e").withAlphaComponent(0.7)
+        detectionStatusLabel.layer.cornerRadius = 12
+        detectionStatusLabel.clipsToBounds = true
+        detectionStatusLabel.isHidden = true
+        // Add padding to the label
+        detectionStatusLabel.layoutMargins = UIEdgeInsets(top: 6, left: 12, bottom: 6, right: 12)
+        view.addSubview(detectionStatusLabel)
+        
+        NSLayoutConstraint.activate([
+            detectionStatusLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            detectionStatusLabel.topAnchor.constraint(equalTo: saveRecordingButton.bottomAnchor, constant: 16),
+            detectionStatusLabel.heightAnchor.constraint(equalToConstant: 32),
+            // Add minimum width to prevent the label from being too narrow
+            detectionStatusLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 160)
+        ])
+        
+        // Add a subtle shadow
+        detectionStatusLabel.layer.shadowColor = UIColor.black.cgColor
+        detectionStatusLabel.layer.shadowOffset = CGSize(width: 0, height: 2)
+        detectionStatusLabel.layer.shadowRadius = 4
+        detectionStatusLabel.layer.shadowOpacity = 0.2
+        detectionStatusLabel.layer.masksToBounds = false
+    }
+    
+    // Update the detection status text setting to include an icon
+    private func updateDetectionStatus(with language: String) {
+        // Only show detection status if language detection is enabled
+        guard isLanguageDetectionEnabled else {
+            detectionStatusLabel.isHidden = true
+            return
+        }
+        
+        // Capitalize the first letter of the language name
+        let capitalizedLanguage = language.prefix(1).uppercased() + language.dropFirst().lowercased()
+        detectionStatusLabel.text = "🎯 Detected: \(capitalizedLanguage)"
+        
+        // Animate the label appearance
+        detectionStatusLabel.alpha = 0
+        detectionStatusLabel.isHidden = false
+        
+        UIView.animate(withDuration: 0.3) {
+            self.detectionStatusLabel.alpha = 1
+        }
+    }
+    
+    private func showLanguageMismatchAlert(detectedLanguage: String) {
+        // Don't show alert if language detection is disabled
+        guard isLanguageDetectionEnabled else { return }
+        
+        // Don't show the switch option if the detected language is the same as the output language
+        let baseOutputLanguage = outputLanguage.split(separator: "-").first?.description ?? outputLanguage
+        if let code = languageDetectionViewModel.detectedLanguage?.code,
+           (code.split(separator: "-").first?.description ?? code) == baseOutputLanguage {
+            
+            let alert = UIAlertController(
+                title: "Invalid Language Selection",
+                message: "You cannot use the same language for input and output. Please choose a different language or continue with your current selection.",
+                preferredStyle: .alert
+            )
+            alert.addAction(UIAlertAction(title: "OK", style: .default))
+            present(alert, animated: true)
+            return
+        }
+
+        // Capitalize the first letter of the language name
+        let capitalizedLanguage = detectedLanguage.prefix(1).uppercased() + detectedLanguage.dropFirst().lowercased()
+        
+        let alert = UIAlertController(
+            title: "Different Language Detected",
+            message: "It seems you're speaking in \(capitalizedLanguage). Would you like to switch to this language?",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "Switch", style: .default) { [weak self] _ in
+            guard let self = self else { return }
+            // Stop current recording
+            self.handleStopRecording()
+            // Update input language
+            if let code = self.languageDetectionViewModel.detectedLanguage?.code {
+                // Remove any region codes (e.g., "en-US" becomes "en")
+                let baseCode = code.split(separator: "-").first?.description ?? code
+                self.inputLanguage = baseCode
+                UserDefaults.standard.set(baseCode, forKey: "selectedInputLanguage")
+                // Update UI to reflect the change
+                self.updateLanguageIndicator()
+            }
+        })
+        
+        alert.addAction(UIAlertAction(title: "Continue", style: .cancel))
+        
+        present(alert, animated: true)
+    }
+    
+    @objc private func handleLanguageDetectionToggle(_ notification: Notification) {
+        if let userInfo = notification.userInfo,
+           let isEnabled = userInfo["isEnabled"] as? Bool {
+            self.isLanguageDetectionEnabled = isEnabled
+            
+            // If detection is disabled, hide the detection status label
+            if !isEnabled {
+                detectionStatusLabel.isHidden = true
+            }
+        }
     }
 }
 
