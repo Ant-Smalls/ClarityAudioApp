@@ -97,13 +97,16 @@ struct RecordingCell: View {
     // Language display names
     private let languageDisplayNames: [String: String] = [
         "en-US": "English",
+        "en": "English",
         "es": "Spanish",
         "de": "German",
         "pt-BR": "Portuguese",
+        "pt": "Portuguese",
         "ja": "Japanese",
         "fr": "French",
         "it": "Italian",
-        "ru": "Russian"
+        "ru": "Russian",
+        "ko": "Korean"
     ]
     
     var body: some View {
@@ -137,7 +140,11 @@ struct RecordingCell: View {
                         }
                         
                         HStack {
-                            Text(languageDisplayNames[recording.sourceLanguage] ?? recording.sourceLanguage)
+                            // Get base language code without region (e.g., "en" from "en-US")
+                            let sourceBase = recording.sourceLanguage.split(separator: "-").first.map(String.init) ?? recording.sourceLanguage
+                            let targetBase = recording.targetLanguage.split(separator: "-").first.map(String.init) ?? recording.targetLanguage
+                            
+                            Text(languageDisplayNames[sourceBase] ?? sourceBase)
                                 .font(.caption)
                                 .foregroundColor(.white.opacity(0.8))
                             
@@ -145,7 +152,7 @@ struct RecordingCell: View {
                                 .font(.caption)
                                 .foregroundColor(.white.opacity(0.6))
                             
-                            Text(languageDisplayNames[recording.targetLanguage] ?? recording.targetLanguage)
+                            Text(languageDisplayNames[targetBase] ?? targetBase)
                                 .font(.caption)
                                 .foregroundColor(.white.opacity(0.8))
                         }

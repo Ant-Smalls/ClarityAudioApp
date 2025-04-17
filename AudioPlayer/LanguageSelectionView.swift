@@ -136,16 +136,28 @@ struct LanguageSelectionView: View {
                         }
                     } label: {
                         HStack {
-                            Text(inputLanguage.isEmpty ? "Select Input Language" : "Input: \(availableLanguages[inputLanguage] ?? inputLanguage)")
-                                .foregroundColor(.white)
+                            Text(inputLanguage.isEmpty ? (isLanguageDetectionEnabled ? "Language Detection Active" : "Select Input Language") : "Input: \(availableLanguages[inputLanguage] ?? inputLanguage)")
+                                .foregroundColor(isLanguageDetectionEnabled ? Color.white.opacity(0.5) : .white)
                             Spacer()
-                            Image(systemName: "chevron.down")
-                                .foregroundColor(.white)
+                            if isLanguageDetectionEnabled {
+                                Image(systemName: "wand.and.stars")
+                                    .foregroundColor(Color.white.opacity(0.5))
+                            } else {
+                                Image(systemName: "chevron.down")
+                                    .foregroundColor(.white)
+                            }
                         }
                         .padding()
                         .frame(maxWidth: .infinity)
-                        .background(Color(hex: "#40607e"))
+                        .background(Color(hex: "#40607e").opacity(isLanguageDetectionEnabled ? 0.3 : 1.0))
                         .cornerRadius(8)
+                    }
+                    .disabled(isLanguageDetectionEnabled)
+                    .onChange(of: isLanguageDetectionEnabled) { newValue in
+                        if newValue {
+                            // Clear input language when detection is enabled
+                            inputLanguage = ""
+                        }
                     }
                     
                     // Output Language Menu
@@ -243,7 +255,7 @@ struct LanguageSelectionView: View {
                     
                     // Continue Button
                     Button(action: {
-                        if !inputLanguage.isEmpty && !outputLanguage.isEmpty {
+                        if (!inputLanguage.isEmpty || isLanguageDetectionEnabled) && !outputLanguage.isEmpty {
                             // Update existing notification to include detection status
                             NotificationCenter.default.post(
                                 name: Notification.Name("LanguagesSelected"),
@@ -274,8 +286,8 @@ struct LanguageSelectionView: View {
                             .font(.system(size: 20, weight: .semibold, design: .rounded))
                     }
                     .buttonStyle(AnimatedButtonStyle())
-                    .opacity(inputLanguage.isEmpty || outputLanguage.isEmpty ? 0.5 : 1.0)
-                    .disabled(inputLanguage.isEmpty || outputLanguage.isEmpty)
+                    .opacity((!inputLanguage.isEmpty || isLanguageDetectionEnabled) && !outputLanguage.isEmpty ? 1.0 : 0.5)
+                    .disabled((!inputLanguage.isEmpty || isLanguageDetectionEnabled) && !outputLanguage.isEmpty ? false : true)
                     .padding(.bottom, 20)
                 }
                 .padding(.horizontal, 20)
