@@ -68,44 +68,51 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
     private struct VoiceID {
         let male: String
         let female: String
+        let custom: String?
+        
+        init(male: String, female: String, custom: String? = nil) {
+            self.male = male
+            self.female = female
+            self.custom = custom
+        }
     }
     
     private let languageVoiceIds: [String: VoiceID] = [
         "en-US": VoiceID(
-            male: "NOpBlnGInO9m6vDvFkFC", // good
-            female: "kdmDKE6EkgrWrrykO9Qt" // good
+            male: "NOpBlnGInO9m6vDvFkFC",
+            female: "kdmDKE6EkgrWrrykO9Qt"
         ),
         "es": VoiceID(
-            male: "aAtR3uAVlEaQIWGd9EDO", // good
-            female: "br0MPoLVxuslVxf61qHn" // good
+            male: "aAtR3uAVlEaQIWGd9EDO",
+            female: "br0MPoLVxuslVxf61qHn"
         ),
         "de": VoiceID(
-            male: "5euSC8RarC3AHrZ242sr", // good
-            female: "yUy9CCX9brt8aPVvIWy3" // bad
+            male: "5euSC8RarC3AHrZ242sr",
+            female: "yUy9CCX9brt8aPVvIWy3"
         ),
         "pt-BR": VoiceID(
-            male: "7u8qsX4HQsSHJ0f8xsQZ", // ok
-            female: "cyD08lEy76q03ER1jZ7y" // ok
+            male: "7u8qsX4HQsSHJ0f8xsQZ",
+            female: "cyD08lEy76q03ER1jZ7y"
         ),
         "ja": VoiceID(
-            male: "3JDquces8E8bkmvbh6Bc", // i think this is good, ask Yusuke?
-            female: "8EkOjt4xTPGMclNlh1pk" // bad
+            male: "3JDquces8E8bkmvbh6Bc",
+            female: "8EkOjt4xTPGMclNlh1pk"
         ),
         "fr": VoiceID(
-            male: "RTFg9niKcgGLDwa3RFlz", // bad
-            female: "WQKwBV2Uzw1gSGr69N8I" // ok
+            male: "RTFg9niKcgGLDwa3RFlz",
+            female: "WQKwBV2Uzw1gSGr69N8I"
         ),
         "it": VoiceID(
-            male: "uScy1bXtKz8vPzfdFsFw", // ok
-            female: "201hPjDVu4Q5DUV7tMQJ" // ok
+            male: "uScy1bXtKz8vPzfdFsFw",
+            female: "201hPjDVu4Q5DUV7tMQJ"
         ),
         "ru": VoiceID(
-            male: "3EuKHIEZbSzrHGNmdYsx", // ok
-            female: "tOo2BJ74frmnPadsDNIi" // good
+            male: "3EuKHIEZbSzrHGNmdYsx",
+            female: "tOo2BJ74frmnPadsDNIi"
         ),
         "ko": VoiceID(
-            male: "FQ3MuLxZh0jHcZmA5vW1", // bad
-            female: "uyVNoMrnUku1dZyVEXwD" // Using male voice as fallback for Korean
+            male: "FQ3MuLxZh0jHcZmA5vW1",
+            female: "uyVNoMrnUku1dZyVEXwD"
         )
     ]
     
@@ -524,6 +531,11 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
         
         // Hide detection status label when stopping
         detectionStatusLabel.isHidden = true
+        
+        // Automatically generate and play the translated audio
+        if !self.finalTranslatedText.isEmpty {
+            self.generateAudioFromTranslation(self.finalTranslatedText)
+        }
     }
     
     func startRealTimeTranscription() {
@@ -692,9 +704,21 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
                     self.playTranslationButton.setTitle("Generating...", for: .normal)
                 }
                 
-                // Get the appropriate voice ID for the output language and gender
-                let voiceData = languageVoiceIds[outputLanguage] ?? languageVoiceIds["en-US"]!
-                let voiceId = selectedGender == "male" ? voiceData.male : voiceData.female
+                // Get the appropriate voice ID based on selection
+                let voiceId: String
+                if selectedGender == "custom" {
+                    if let customVoiceId = UserDefaults.standard.string(forKey: "savedVoiceId") {
+                        voiceId = customVoiceId
+                    } else {
+                        throw NSError(domain: "AudioPlayer", code: -1, userInfo: [
+                            NSLocalizedDescriptionKey: "Custom voice not set up. Please clone your voice first."
+                        ])
+                    }
+                } else {
+                    // Get the default voice for the language and gender
+                    let voiceData = languageVoiceIds[outputLanguage] ?? languageVoiceIds["en-US"]!
+                    voiceId = selectedGender == "male" ? voiceData.male : voiceData.female
+                }
                 
                 // Generate speech using ElevenLabs
                 let audioData = try await ElevenLabsService.shared.synthesizeSpeech(
@@ -721,14 +745,11 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
                 // Update button state
                 DispatchQueue.main.async {
                     self.playTranslationButton.setTitle("Playing...", for: .normal)
-                    self.playTranslationButton.isEnabled = true
                 }
                 
             } catch {
-                print("❌ Speech synthesis error:", error)
                 DispatchQueue.main.async {
-                    self.showAlert(title: "Error", 
-                                 message: "Failed to synthesize speech. Please check your API key and try again.")
+                    self.showAlert(title: "Error", message: error.localizedDescription)
                     self.playTranslationButton.setTitle("Play Translation", for: .normal)
                     self.playTranslationButton.isEnabled = true
                 }
@@ -753,9 +774,21 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
                     self.playTranslationButton.setTitle("Generating...", for: .normal)
                 }
                 
-                // Get the appropriate voice ID for the output language and gender
-                let voiceData = languageVoiceIds[outputLanguage] ?? languageVoiceIds["en-US"]!
-                let voiceId = selectedGender == "male" ? voiceData.male : voiceData.female
+                // Get the appropriate voice ID based on selection
+                let voiceId: String
+                if selectedGender == "custom" {
+                    if let customVoiceId = UserDefaults.standard.string(forKey: "savedVoiceId") {
+                        voiceId = customVoiceId
+                    } else {
+                        throw NSError(domain: "AudioPlayer", code: -1, userInfo: [
+                            NSLocalizedDescriptionKey: "Custom voice not set up. Please clone your voice first."
+                        ])
+                    }
+                } else {
+                    // Get the default voice for the language and gender
+                    let voiceData = languageVoiceIds[outputLanguage] ?? languageVoiceIds["en-US"]!
+                    voiceId = selectedGender == "male" ? voiceData.male : voiceData.female
+                }
                 
                 // Pass the voice ID to the speech synthesis method
                 let audioData = try await ElevenLabsService.shared.synthesizeSpeech(

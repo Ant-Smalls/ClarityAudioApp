@@ -32,6 +32,8 @@ struct LanguageSelectionView: View {
     @State private var showError: Bool = false
     @State private var errorMessage: String = ""
     @State private var isLanguageDetectionEnabled: Bool = UserDefaults.standard.bool(forKey: "isLanguageDetectionEnabled")
+    @State private var showVoiceCloneWizard = false
+    @State private var hasCustomVoice: Bool = UserDefaults.standard.string(forKey: "customVoiceId") != nil
     
     private let languageService = LanguageDetectionService.shared
     
@@ -216,7 +218,31 @@ struct LanguageSelectionView: View {
                             }
                             .buttonStyle(AnimatedButtonStyle())
                             .opacity(selectedGender == "female" ? 1.0 : 0.7)
+                            
+                            // Custom Voice Button (if available)
+                            if hasCustomVoice {
+                                Button(action: { selectedGender = "custom" }) {
+                                    HStack {
+                                        Image(systemName: "waveform")
+                                        Text("Custom")
+                                    }
+                                }
+                                .buttonStyle(AnimatedButtonStyle())
+                                .opacity(selectedGender == "custom" ? 1.0 : 0.7)
+                            }
                         }
+                        
+                        // Clone Voice Button
+                        Button(action: {
+                            showVoiceCloneWizard = true
+                        }) {
+                            HStack {
+                                Image(systemName: "waveform")
+                                Text("Clone Your Voice")
+                            }
+                        }
+                        .buttonStyle(AnimatedButtonStyle())
+                        .padding(.top, 8)
                     }
                     .padding(.top, 2)
                     
@@ -293,6 +319,9 @@ struct LanguageSelectionView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
             }
+            .sheet(isPresented: $showVoiceCloneWizard) {
+                VoiceCloneWizardView()
+            }
             .alert("Invalid Selection", isPresented: $showError) {
                 Button("OK", role: .cancel) { }
             } message: {
@@ -320,6 +349,27 @@ struct LanguageSelectionView: View {
                     outputLanguage = baseCode
                 }
             }
+            
+            // Check for custom voice on appear
+            checkCustomVoiceAvailability()
+            
+            // Add observer for custom voice updates
+            NotificationCenter.default.addObserver(
+                forName: Notification.Name("CustomVoiceUpdated"),
+                object: nil,
+                queue: .main
+            ) { _ in
+                checkCustomVoiceAvailability()
+            }
+        }
+    }
+    
+    private func checkCustomVoiceAvailability() {
+        hasCustomVoice = UserDefaults.standard.string(forKey: "customVoiceId") != nil
+        // If custom voice was removed and it was selected, switch to male
+        if !hasCustomVoice && selectedGender == "custom" {
+            selectedGender = "male"
+            UserDefaults.standard.set("male", forKey: "selectedVoiceGender")
         }
     }
 }

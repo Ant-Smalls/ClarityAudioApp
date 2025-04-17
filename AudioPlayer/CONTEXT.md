@@ -188,3 +188,72 @@ After each phase:
 5. Add **error handling**:
    - Handle failed API requests gracefully.
    - Optionally show a loading spinner or "Generating audio..." feedback.
+
+
+   Feature: Clone Your Own Voice Wizard
+
+Goal:
+Allow users to clone their voice via ElevenLabs, get a voiceId, and use it as a "Custom" voice option in Clarity’s playback settings.
+🎯 Implementation Plan — Safe, Step-by-Step
+📦 Phase 1: UI Setup & Flow Structure (No Backend Connection Yet)
+
+    Add a “Clone Your Voice” button in the LanguagesView.
+
+    On press, open a modal or navigate to a VoiceCloneWizardView.
+
+    In this view:
+
+        Offer two options:
+
+            I already have a Voice ID → Text input to enter voiceId.
+
+            Clone a new Voice → Button to open ElevenLabs cloning page via external link.
+
+    Add proper error handling if no Voice ID is provided when selecting Custom voice.
+
+📦 Phase 2: External Cloning Process (User-driven)
+
+    When the user selects Clone a new Voice:
+
+        Open a URL link to ElevenLabs' voice cloning page using Linking.openURL()
+
+            e.g. https://elevenlabs.io/voice-lab
+
+        Include a message:
+        "You'll need to log in to ElevenLabs and record a two-minute voice sample to create your voice clone. Once completed, copy your new Voice ID here."
+
+📦 Phase 3: Save Custom Voice ID
+
+    After the user enters a valid Voice ID in the text input:
+
+        Save this value to local storage or SQLite DB under a key like customVoiceId.
+
+        Confirm voiceId validity by optionally hitting the ElevenLabs API to fetch voice details (optional but nice UX check).
+
+        Set this customVoiceId as the third option in your voice picker:
+
+            Male
+
+            Female
+
+            Custom
+
+📦 Phase 4: Integrating Voice ID into Playback
+
+    In your ElevenLabs playback request:
+
+        If the user selects Custom voice:
+
+            Retrieve customVoiceId from storage.
+
+            Use this in the ElevenLabs API request.
+
+            If no customVoiceId exists, show error toast/alert:
+            "Please clone your voice or enter your Voice ID before using this feature."
+
+📦 Phase 5 (Optional): Voice ID Management UI
+
+    Add a Manage Voice ID button somewhere in settings:
+
+        Allow users to view, update, or delete their saved customVoiceId.
+

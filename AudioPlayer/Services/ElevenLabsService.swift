@@ -12,16 +12,34 @@ class ElevenLabsService {
     
     private init() {}
     
-    func synthesizeSpeech(text: String, voiceId: String = APIConfig.elevenLabsVoiceID) async throws -> Data {
-        let url = "\(APIConfig.elevenLabsBaseURL)/\(voiceId)"
-        guard let requestUrl = URL(string: url) else {
-            throw ElevenLabsError.invalidURL
+    func synthesizeSpeech(text: String, voiceId: String) async throws -> Data {
+        // If using custom voice, get it from UserDefaults
+        let finalVoiceId: String
+        if voiceId == "custom" {
+            if let customVoiceId = UserDefaults.standard.string(forKey: "customVoiceId") {
+                finalVoiceId = customVoiceId
+            } else {
+                throw NSError(
+                    domain: "ElevenLabsService",
+                    code: -1,
+                    userInfo: [NSLocalizedDescriptionKey: "Custom voice ID not found. Please set up your voice clone first."]
+                )
+            }
+        } else {
+            finalVoiceId = voiceId
         }
         
-        var request = URLRequest(url: requestUrl)
+        let apiKey = APIConfig.elevenLabsAPIKey
+        let endpoint = "\(APIConfig.elevenLabsBaseURL)/\(finalVoiceId)"
+        
+        guard let url = URL(string: endpoint) else {
+            throw NSError(domain: "ElevenLabsService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])
+        }
+        
+        var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(APIConfig.elevenLabsAPIKey, forHTTPHeaderField: "xi-api-key")
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.addValue(apiKey, forHTTPHeaderField: "xi-api-key")
         
         let body: [String: Any] = [
             "text": text,
@@ -32,19 +50,44 @@ class ElevenLabsService {
             ]
         ]
         
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
         
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200...299).contains(httpResponse.statusCode) else {
-                throw ElevenLabsError.invalidResponse
-            }
-            
-            return data
-        } catch {
-            throw ElevenLabsError.requestFailed(error)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NSError(domain: "ElevenLabsService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
         }
+        
+        guard httpResponse.statusCode == 200 else {
+            throw NSError(
+                domain: "ElevenLabsService",
+                code: httpResponse.statusCode,
+                userInfo: [NSLocalizedDescriptionKey: "Failed to synthesize speech. Status code: \(httpResponse.statusCode)"]
+            )
+        }
+        
+        return data
+    }
+    
+    // Optional: Add method to verify voice ID
+    func verifyVoiceId(_ voiceId: String) async throws -> Bool {
+        let apiKey = APIConfig.elevenLabsAPIKey
+        let endpoint = "https://api.elevenlabs.io/v1/voices/\(voiceId)"
+        
+        guard let url = URL(string: endpoint) else {
+            throw NSError(domain: "ElevenLabsService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.addValue(apiKey, forHTTPHeaderField: "xi-api-key")
+        
+        let (_, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            return false
+        }
+        
+        return httpResponse.statusCode == 200
     }
 } 
