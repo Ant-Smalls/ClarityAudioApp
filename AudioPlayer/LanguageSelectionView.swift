@@ -34,6 +34,8 @@ struct LanguageSelectionView: View {
     @State private var isLanguageDetectionEnabled: Bool = UserDefaults.standard.bool(forKey: "isLanguageDetectionEnabled")
     @State private var showVoiceCloneWizard = false
     @State private var hasCustomVoice: Bool = UserDefaults.standard.string(forKey: "customVoiceId") != nil
+    @State private var showingCustomVoiceManagement = false
+    @StateObject private var customVoiceViewModel = CustomVoiceViewModel()
     
     private let languageService = LanguageDetectionService.shared
     
@@ -70,6 +72,57 @@ struct LanguageSelectionView: View {
         }
         
         return true
+    }
+
+    var voiceSelectionSection: some View {
+        Section(header: Text("Voice Selection")) {
+            Picker("Voice", selection: $selectedGender) {
+                Text("Male").tag("male")
+                Text("Female").tag("female")
+                if !customVoiceViewModel.customVoices.isEmpty {
+                    Text("Custom").tag("custom")
+                }
+            }
+            .pickerStyle(.segmented)
+            
+            if selectedGender == "custom" {
+                Menu {
+                    ForEach(customVoiceViewModel.customVoices) { voice in
+                        Button(action: {
+                            customVoiceViewModel.setActiveVoice(voice)
+                        }) {
+                            HStack {
+                                Text(voice.name)
+                                if voice.id == customVoiceViewModel.activeVoice?.id {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                    
+                    Button(action: {
+                        showingCustomVoiceManagement = true
+                    }) {
+                        Label("Manage Voices", systemImage: "gear")
+                    }
+                } label: {
+                    HStack {
+                        Text(customVoiceViewModel.activeVoice?.name ?? "Select Custom Voice")
+                            .foregroundColor(.white)
+                        Spacer()
+                        Image(systemName: "chevron.down")
+                            .foregroundColor(.white)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color(hex: "#40607e"))
+                    .cornerRadius(8)
+                }
+            }
+        }
+        .sheet(isPresented: $showingCustomVoiceManagement) {
+            CustomVoiceManagementView()
+        }
     }
 
     var body: some View {
@@ -192,59 +245,19 @@ struct LanguageSelectionView: View {
                         .cornerRadius(8)
                     }
                     
-                    // Voice Gender Selection with minimal spacing
-                    VStack(spacing: 6) {
-                        Text("Voice Gender")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                        
-                        HStack(spacing: 8) {
-                            // Male Button
-                            Button(action: { selectedGender = "male" }) {
-                                HStack {
-                                    Image(systemName: "person.fill")
-                                    Text("Male")
-                                }
-                            }
-                            .buttonStyle(AnimatedButtonStyle())
-                            .opacity(selectedGender == "male" ? 1.0 : 0.7)
-                            
-                            // Female Button
-                            Button(action: { selectedGender = "female" }) {
-                                HStack {
-                                    Image(systemName: "person.fill")
-                                    Text("Female")
-                                }
-                            }
-                            .buttonStyle(AnimatedButtonStyle())
-                            .opacity(selectedGender == "female" ? 1.0 : 0.7)
-                            
-                            // Custom Voice Button (if available)
-                            if hasCustomVoice {
-                                Button(action: { selectedGender = "custom" }) {
-                                    HStack {
-                                        Image(systemName: "waveform")
-                                        Text("Custom")
-                                    }
-                                }
-                                .buttonStyle(AnimatedButtonStyle())
-                                .opacity(selectedGender == "custom" ? 1.0 : 0.7)
-                            }
+                    voiceSelectionSection
+                    
+                    // Clone Voice Button
+                    Button(action: {
+                        showVoiceCloneWizard = true
+                    }) {
+                        HStack {
+                            Image(systemName: "waveform")
+                            Text("Clone Your Voice")
                         }
-                        
-                        // Clone Voice Button
-                        Button(action: {
-                            showVoiceCloneWizard = true
-                        }) {
-                            HStack {
-                                Image(systemName: "waveform")
-                                Text("Clone Your Voice")
-                            }
-                        }
-                        .buttonStyle(AnimatedButtonStyle())
-                        .padding(.top, 8)
                     }
-                    .padding(.top, 2)
+                    .buttonStyle(AnimatedButtonStyle())
+                    .padding(.top, 8)
                     
                     // Language List Button
                     Button(action: { showingLanguageList = true }) {
@@ -282,16 +295,26 @@ struct LanguageSelectionView: View {
                     // Continue Button
                     Button(action: {
                         if (!inputLanguage.isEmpty || isLanguageDetectionEnabled) && !outputLanguage.isEmpty {
-                            // Update existing notification to include detection status
+                            var userInfo: [String: Any] = [
+                                "inputLanguage": inputLanguage,
+                                "outputLanguage": outputLanguage,
+                                "selectedGender": selectedGender,
+                                "isLanguageDetectionEnabled": isLanguageDetectionEnabled
+                            ]
+                            
+                            // Add custom voice ID if custom voice is selected
+                            if selectedGender == "custom", let activeVoice = customVoiceViewModel.activeVoice {
+                                userInfo["customVoiceId"] = activeVoice.voiceId
+                                UserDefaults.standard.set(activeVoice.voiceId, forKey: "customVoiceId")
+                            } else {
+                                UserDefaults.standard.removeObject(forKey: "customVoiceId")
+                            }
+                            
+                            // Update existing notification to include detection status and custom voice
                             NotificationCenter.default.post(
                                 name: Notification.Name("LanguagesSelected"),
                                 object: nil,
-                                userInfo: [
-                                    "inputLanguage": inputLanguage,
-                                    "outputLanguage": outputLanguage,
-                                    "selectedGender": selectedGender,
-                                    "isLanguageDetectionEnabled": isLanguageDetectionEnabled
-                                ]
+                                userInfo: userInfo
                             )
                             
                             // Save all selections to UserDefaults

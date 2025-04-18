@@ -5,8 +5,8 @@ struct VoiceCloneWizardView: View {
     @Environment(\.presentationMode) var presentationMode
     @StateObject private var viewModel = VoiceCloneWizardViewModel()
     @State private var voiceIdInput: String = ""
-    @State private var showAlert = false
-    @State private var alertMessage = ""
+    @State private var showNamePrompt = false
+    @State private var voiceName: String = ""
     
     var body: some View {
         NavigationView {
@@ -62,7 +62,9 @@ struct VoiceCloneWizardView: View {
                         
                         Button(action: {
                             Task {
-                                await viewModel.saveVoiceId(voiceIdInput)
+                                if await viewModel.verifyVoiceId(voiceIdInput) {
+                                    showNamePrompt = true
+                                }
                             }
                         }) {
                             HStack {
@@ -119,12 +121,24 @@ struct VoiceCloneWizardView: View {
                 .disabled(viewModel.isSaving)
             )
         }
-        .alert(isPresented: $viewModel.showAlert) {
-            Alert(
-                title: Text("Voice ID Status"),
-                message: Text(viewModel.alertMessage),
-                dismissButton: .default(Text("OK"))
-            )
+        .alert("Name Your Voice", isPresented: $showNamePrompt) {
+            TextField("Voice Name", text: $voiceName)
+            Button("Cancel", role: .cancel) {
+                voiceName = ""
+            }
+            Button("Save") {
+                Task {
+                    await viewModel.saveVoiceWithName(voiceIdInput, name: voiceName)
+                    presentationMode.wrappedValue.dismiss()
+                }
+            }
+        } message: {
+            Text("Give your voice a name to help you identify it later.")
+        }
+        .alert("Voice ID Status", isPresented: $viewModel.showAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(viewModel.alertMessage)
         }
     }
     
@@ -161,6 +175,7 @@ class VoiceCloneWizardViewModel: NSObject, ObservableObject, AVAudioPlayerDelega
     @Published var isSaving: Bool = false
     @Published var isPreviewPlaying: Bool = false
     @Published var verificationStatus: VerificationStatus = .none
+    
     private var audioPlayer: AVAudioPlayer?
     
     override init() {
@@ -180,9 +195,63 @@ class VoiceCloneWizardViewModel: NSObject, ObservableObject, AVAudioPlayerDelega
         }
     }
     
-    func previewVoice(_ voiceId: String) async {
+    func verifyVoiceId(_ voiceId: String) async -> Bool {
         guard !voiceId.isEmpty else {
             showAlert(message: "Please enter a Voice ID")
+            return false
+        }
+        
+        DispatchQueue.main.async {
+            self.isSaving = true
+            self.verificationStatus = .verifying
+        }
+        
+        do {
+            let isValid = try await ElevenLabsService.shared.verifyVoiceId(voiceId)
+            
+            DispatchQueue.main.async {
+                if isValid {
+                    self.verificationStatus = .success
+                } else {
+                    self.verificationStatus = .failure
+                    self.showAlert(message: "Invalid Voice ID. Please check and try again.")
+                }
+                self.isSaving = false
+            }
+            return isValid
+        } catch {
+            DispatchQueue.main.async {
+                self.verificationStatus = .failure
+                self.showAlert(message: "Error verifying Voice ID: \(error.localizedDescription)")
+                self.isSaving = false
+            }
+            return false
+        }
+    }
+    
+    func saveVoiceWithName(_ voiceId: String, name: String) async {
+        guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            showAlert(message: "Please enter a valid name for your voice")
+            return
+        }
+        
+        do {
+            let newVoice = CustomVoice(name: name, voiceId: voiceId)
+            try CustomVoiceManager.shared.saveCustomVoice(newVoice)
+            NotificationCenter.default.post(name: Notification.Name("CustomVoiceUpdated"), object: nil)
+            
+            DispatchQueue.main.async {
+                self.showAlert(message: "Voice saved successfully! You can now select 'Custom' as your voice option.")
+            }
+        } catch {
+            showAlert(message: "Failed to save voice: \(error.localizedDescription)")
+        }
+    }
+    
+    func previewVoice(_ voiceId: String) async {
+        guard !voiceId.isEmpty else {
+            alertMessage = "Please enter a valid Voice ID"
+            showAlert = true
             return
         }
         
@@ -216,44 +285,11 @@ class VoiceCloneWizardViewModel: NSObject, ObservableObject, AVAudioPlayerDelega
         }
     }
     
-    func saveVoiceId(_ voiceId: String) async {
-        guard !voiceId.isEmpty else {
-            showAlert(message: "Please enter a Voice ID")
-            return
-        }
-        
-        DispatchQueue.main.async {
-            self.isSaving = true
-            self.verificationStatus = .verifying
-        }
-        
-        do {
-            let isValid = try await ElevenLabsService.shared.verifyVoiceId(voiceId)
-            
-            DispatchQueue.main.async {
-                if isValid {
-                    UserDefaults.standard.set(voiceId, forKey: "customVoiceId")
-                    NotificationCenter.default.post(name: Notification.Name("CustomVoiceUpdated"), object: nil)
-                    self.verificationStatus = .success
-                    self.showAlert(message: "Voice ID saved successfully! You can now select 'Custom' as your voice option.")
-                } else {
-                    self.verificationStatus = .failure
-                    self.showAlert(message: "Invalid Voice ID. Please check and try again.")
-                }
-                self.isSaving = false
-            }
-        } catch {
-            DispatchQueue.main.async {
-                self.verificationStatus = .failure
-                self.showAlert(message: "Error verifying Voice ID: \(error.localizedDescription)")
-                self.isSaving = false
-            }
-        }
-    }
-    
     private func showAlert(message: String) {
-        self.alertMessage = message
-        self.showAlert = true
+        DispatchQueue.main.async {
+            self.alertMessage = message
+            self.showAlert = true
+        }
     }
     
     deinit {

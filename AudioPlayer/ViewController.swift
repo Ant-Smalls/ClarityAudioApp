@@ -707,11 +707,11 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
                 // Get the appropriate voice ID based on selection
                 let voiceId: String
                 if selectedGender == "custom" {
-                    if let customVoiceId = UserDefaults.standard.string(forKey: "savedVoiceId") {
-                        voiceId = customVoiceId
+                    if let activeVoice = CustomVoiceManager.shared.getActiveCustomVoice() {
+                        voiceId = activeVoice.voiceId
                     } else {
                         throw NSError(domain: "AudioPlayer", code: -1, userInfo: [
-                            NSLocalizedDescriptionKey: "Custom voice not set up. Please clone your voice first."
+                            NSLocalizedDescriptionKey: "No active custom voice selected. Please select a custom voice first."
                         ])
                     }
                 } else {
@@ -777,11 +777,11 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
                 // Get the appropriate voice ID based on selection
                 let voiceId: String
                 if selectedGender == "custom" {
-                    if let customVoiceId = UserDefaults.standard.string(forKey: "savedVoiceId") {
-                        voiceId = customVoiceId
+                    if let activeVoice = CustomVoiceManager.shared.getActiveCustomVoice() {
+                        voiceId = activeVoice.voiceId
                     } else {
                         throw NSError(domain: "AudioPlayer", code: -1, userInfo: [
-                            NSLocalizedDescriptionKey: "Custom voice not set up. Please clone your voice first."
+                            NSLocalizedDescriptionKey: "No active custom voice selected. Please select a custom voice first."
                         ])
                     }
                 } else {
@@ -815,7 +815,7 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
                 print("❌ Speech synthesis error:", error)
                 DispatchQueue.main.async {
                     self.showAlert(title: "Error", 
-                                 message: "Failed to synthesize speech. Please check your API key and try again.")
+                                 message: "Failed to synthesize speech: \(error.localizedDescription)")
                     self.playTranslationButton.setTitle("Play Translation", for: .normal)
                     self.playTranslationButton.isEnabled = true
                 }
