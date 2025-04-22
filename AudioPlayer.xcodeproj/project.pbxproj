@@ -135,7 +135,7 @@
 			packageProductDependencies = (
 				53F2BA1D2DA8686C00EF4324 /* SQLite */,
 			);
-			productName = AudioPlayer;
+			productName = Clarity;
 			productReference = 4AF992722D039E2200C5571A /* AudioPlayer.app */;
 			productType = "com.apple.product-type.application";
 		};
@@ -318,8 +318,9 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.tciric.SwiftTestAudioPlayer;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.tciric.Clarity";
+				PRODUCT_MODULE_NAME = Clarity;
+				PRODUCT_NAME = Clarity;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -349,8 +350,9 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.tciric.SwiftTestAudioPlayer;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.tciric.Clarity";
+				PRODUCT_MODULE_NAME = Clarity;
+				PRODUCT_NAME = Clarity;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
