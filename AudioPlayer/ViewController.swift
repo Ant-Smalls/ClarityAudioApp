@@ -10,6 +10,8 @@ import Speech
 import Translation
 import SwiftUI
 import Foundation
+import Network
+import Network
 
 class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlayerDelegate {
     
@@ -122,6 +124,10 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
     // Add property for language detection state
     private var isLanguageDetectionEnabled: Bool = UserDefaults.standard.bool(forKey: "isLanguageDetectionEnabled")
     
+    // Add properties after other UI element properties
+    private var offlineIndicatorView: UIImageView!
+    private var hasShownOfflinePopup = false
+    
     // MARK: - UI Elements (Connected via Storyboard)
     @IBOutlet weak var recordButton: UIButton!
     @IBOutlet weak var stopRecordButton: UIButton!
@@ -141,6 +147,7 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
         requestSpeechPermission()
         setupSaveButton()
         setupPlayButton()
+        setupOfflineIndicator()
         styleUI()
         
         // Set initial button states.
@@ -168,6 +175,9 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
             name: Notification.Name("LanguageDetectionToggled"),
             object: nil
         )
+        
+        // Check initial connection status
+        updateOfflineStatus()
     }
     
     override func viewDidLayoutSubviews() {
@@ -306,9 +316,24 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
         languageSwitchButton.tintColor = .white
         languageSwitchButton.addTarget(self, action: #selector(handleLanguageSwitch), for: .touchUpInside)
         
-        // Add both to stack view
+        // Setup offline indicator
+        offlineIndicatorView = UIImageView()
+        offlineIndicatorView.translatesAutoresizingMaskIntoConstraints = false
+        offlineIndicatorView.image = UIImage(systemName: "wifi.slash")
+        offlineIndicatorView.tintColor = .white
+        offlineIndicatorView.contentMode = .scaleAspectFit
+        offlineIndicatorView.isHidden = true
+        
+        // Set a fixed size for the offline indicator
+        NSLayoutConstraint.activate([
+            offlineIndicatorView.widthAnchor.constraint(equalToConstant: 20),
+            offlineIndicatorView.heightAnchor.constraint(equalToConstant: 20)
+        ])
+        
+        // Add all elements to stack view
         stackView.addArrangedSubview(languageIndicatorLabel)
         stackView.addArrangedSubview(languageSwitchButton)
+        stackView.addArrangedSubview(offlineIndicatorView)
         
         // Add constraints for stack view
         NSLayoutConstraint.activate([
@@ -684,6 +709,31 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
         return paths[0]
     }
     
+    // Update the isConnectedToInternet method
+    private func isConnectedToInternet() -> Bool {
+        let monitor = NWPathMonitor()
+        let semaphore = DispatchSemaphore(value: 0)
+        var isConnected = false
+        
+        monitor.pathUpdateHandler = { [weak self] path in
+            isConnected = path.status == .satisfied
+            // Update UI on the main thread
+            DispatchQueue.main.async {
+                self?.offlineIndicatorView.isHidden = isConnected  // Show icon when offline (not connected)
+            }
+            semaphore.signal()
+        }
+        
+        let queue = DispatchQueue(label: "NetworkMonitor")
+        monitor.start(queue: queue)
+        
+        _ = semaphore.wait(timeout: .now() + 1.0)
+        monitor.cancel()
+        
+        return isConnected
+    }
+    
+    // Update the generateAudioFromTranslation method
     func generateAudioFromTranslation(_ text: String) {
         print("🔊 Generating audio from translated text (FINAL).")
         
@@ -697,45 +747,97 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
                     self.playTranslationButton.setTitle("Generating...", for: .normal)
                 }
                 
-                // Get the appropriate voice ID based on selection
-                let voiceId: String
-                if selectedGender == "custom" {
-                    if let activeVoice = CustomVoiceManager.shared.getActiveCustomVoice() {
-                        voiceId = activeVoice.voiceId
+                let isOnline = isConnectedToInternet()
+                
+                if isOnline {
+                    // Online mode: Use ElevenLabs
+                    // Get the appropriate voice ID based on selection
+                    let voiceId: String
+                    if selectedGender == "custom" {
+                        if let activeVoice = CustomVoiceManager.shared.getActiveCustomVoice() {
+                            voiceId = activeVoice.voiceId
+                        } else {
+                            throw NSError(domain: "AudioPlayer", code: -1, userInfo: [
+                                NSLocalizedDescriptionKey: "No active custom voice selected. Please select a custom voice first."
+                            ])
+                        }
                     } else {
-                        throw NSError(domain: "AudioPlayer", code: -1, userInfo: [
-                            NSLocalizedDescriptionKey: "No active custom voice selected. Please select a custom voice first."
-                        ])
+                        // Get the default voice for the language and gender
+                        let voiceData = languageVoiceIds[outputLanguage] ?? languageVoiceIds["en-US"]!
+                        voiceId = selectedGender == "male" ? voiceData.male : voiceData.female
                     }
+                    
+                    // Generate speech using ElevenLabs
+                    let audioData = try await ElevenLabsService.shared.synthesizeSpeech(
+                        text: text,
+                        voiceId: voiceId
+                    )
+                    
+                    // Save the audio file
+                    let timestamp = Int(Date().timeIntervalSince1970 * 1000)
+                    let fileURL = getDocumentsDirectory().appendingPathComponent("translatedSpeech_\(timestamp).m4a")
+                    try audioData.write(to: fileURL)
+                    self.elevenLabsAudioFileURL = fileURL
+                    
+                    // Configure audio session for playback
+                    configureAudioSession(for: "playback")
+                    
+                    let audioPlayer = try AVAudioPlayer(data: audioData)
+                    self.audioPlayer = audioPlayer
+                    audioPlayer.delegate = self
+                    audioPlayer.volume = 1.0
+                    audioPlayer.prepareToPlay()
+                    audioPlayer.play()
                 } else {
-                    // Get the default voice for the language and gender
-                    let voiceData = languageVoiceIds[outputLanguage] ?? languageVoiceIds["en-US"]!
-                    voiceId = selectedGender == "male" ? voiceData.male : voiceData.female
+                    // Offline mode: Use AVSpeechSynthesizer
+                    print("📢 Using offline speech synthesis")
+                    
+                    // Configure audio session for playback
+                    configureAudioSession(for: "playback")
+                    
+                    let synthesizer = AVSpeechSynthesizer()
+                    let utterance = AVSpeechUtterance(string: text)
+                    
+                    // Set the voice based on the output language
+                    let baseLanguageCode = outputLanguage.split(separator: "-").first?.description ?? outputLanguage
+                    if let voice = AVSpeechSynthesisVoice(language: baseLanguageCode) {
+                        utterance.voice = voice
+                    } else {
+                        // Fallback to system default if language not available
+                        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
+                    }
+                    
+                    // Configure utterance properties
+                    utterance.rate = 0.5
+                    utterance.pitchMultiplier = 1.0
+                    utterance.volume = 1.0
+                    
+                    // Create a delegate to handle both start and completion
+                    let delegate = SpeechSynthesizerDelegate(
+                        didStart: {
+                            DispatchQueue.main.async {
+                                self.playTranslationButton.setTitle("Playing...", for: .normal)
+                            }
+                        },
+                        didFinish: {
+                            DispatchQueue.main.async {
+                                self.playTranslationButton.setTitle("Play Translation", for: .normal)
+                                self.playTranslationButton.isEnabled = true
+                            }
+                        }
+                    )
+                    synthesizer.delegate = delegate
+                    
+                    // Keep a reference to prevent deallocation
+                    self.speechSynthesizerDelegate = delegate
+                    
+                    // Save a reference to the synthesizer to prevent deallocation
+                    self.currentSynthesizer = synthesizer
+                    
+                    synthesizer.speak(utterance)
                 }
                 
-                // Generate speech using ElevenLabs
-                let audioData = try await ElevenLabsService.shared.synthesizeSpeech(
-                    text: text,
-                    voiceId: voiceId
-                )
-                
-                // Save the audio file
-                let timestamp = Int(Date().timeIntervalSince1970 * 1000)
-                let fileURL = getDocumentsDirectory().appendingPathComponent("translatedSpeech_\(timestamp).m4a")
-                try audioData.write(to: fileURL)
-                self.elevenLabsAudioFileURL = fileURL
-                
-                // Configure audio session for playback
-                configureAudioSession(for: "playback")
-                
-                let audioPlayer = try AVAudioPlayer(data: audioData)
-                self.audioPlayer = audioPlayer
-                audioPlayer.delegate = self
-                audioPlayer.volume = 1.0
-                audioPlayer.prepareToPlay()
-                audioPlayer.play()
-                
-                // Update button state
+                // Update button state immediately after initiating synthesis
                 DispatchQueue.main.async {
                     self.playTranslationButton.setTitle("Playing...", for: .normal)
                 }
@@ -767,37 +869,77 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
                     self.playTranslationButton.setTitle("Generating...", for: .normal)
                 }
                 
-                // Get the appropriate voice ID based on selection
-                let voiceId: String
-                if selectedGender == "custom" {
-                    if let activeVoice = CustomVoiceManager.shared.getActiveCustomVoice() {
-                        voiceId = activeVoice.voiceId
+                let isOnline = isConnectedToInternet()
+                
+                if isOnline {
+                    // Online mode: Use ElevenLabs
+                    let voiceId: String
+                    if selectedGender == "custom" {
+                        if let activeVoice = CustomVoiceManager.shared.getActiveCustomVoice() {
+                            voiceId = activeVoice.voiceId
+                        } else {
+                            throw NSError(domain: "AudioPlayer", code: -1, userInfo: [
+                                NSLocalizedDescriptionKey: "No active custom voice selected. Please select a custom voice first."
+                            ])
+                        }
                     } else {
-                        throw NSError(domain: "AudioPlayer", code: -1, userInfo: [
-                            NSLocalizedDescriptionKey: "No active custom voice selected. Please select a custom voice first."
-                        ])
+                        let voiceData = languageVoiceIds[outputLanguage] ?? languageVoiceIds["en-US"]!
+                        voiceId = selectedGender == "male" ? voiceData.male : voiceData.female
                     }
+                    
+                    let audioData = try await ElevenLabsService.shared.synthesizeSpeech(
+                        text: finalTranslatedText,
+                        voiceId: voiceId
+                    )
+                    
+                    try AVAudioSession.sharedInstance().setCategory(.playback)
+                    try AVAudioSession.sharedInstance().setActive(true)
+                    
+                    let audioPlayer = try AVAudioPlayer(data: audioData)
+                    self.audioPlayer = audioPlayer
+                    audioPlayer.delegate = self
+                    audioPlayer.prepareToPlay()
+                    audioPlayer.play()
                 } else {
-                    // Get the default voice for the language and gender
-                    let voiceData = languageVoiceIds[outputLanguage] ?? languageVoiceIds["en-US"]!
-                    voiceId = selectedGender == "male" ? voiceData.male : voiceData.female
+                    // Offline mode: Use AVSpeechSynthesizer
+                    print("📢 Using offline speech synthesis for playback")
+                    
+                    configureAudioSession(for: "playback")
+                    
+                    let synthesizer = AVSpeechSynthesizer()
+                    let utterance = AVSpeechUtterance(string: finalTranslatedText)
+                    
+                    let baseLanguageCode = outputLanguage.split(separator: "-").first?.description ?? outputLanguage
+                    if let voice = AVSpeechSynthesisVoice(language: baseLanguageCode) {
+                        utterance.voice = voice
+                    } else {
+                        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
+                    }
+                    
+                    utterance.rate = 0.5
+                    utterance.pitchMultiplier = 1.0
+                    utterance.volume = 1.0
+                    
+                    let delegate = SpeechSynthesizerDelegate(
+                        didStart: {
+                            DispatchQueue.main.async {
+                                self.playTranslationButton.setTitle("Playing...", for: .normal)
+                            }
+                        },
+                        didFinish: {
+                            DispatchQueue.main.async {
+                                self.playTranslationButton.setTitle("Play Translation", for: .normal)
+                                self.playTranslationButton.isEnabled = true
+                            }
+                        }
+                    )
+                    synthesizer.delegate = delegate
+                    
+                    self.speechSynthesizerDelegate = delegate
+                    self.currentSynthesizer = synthesizer
+                    
+                    synthesizer.speak(utterance)
                 }
-                
-                // Pass the voice ID to the speech synthesis method
-                let audioData = try await ElevenLabsService.shared.synthesizeSpeech(
-                    text: finalTranslatedText,
-                    voiceId: voiceId
-                )
-                
-                // Play the audio
-                try AVAudioSession.sharedInstance().setCategory(.playback)
-                try AVAudioSession.sharedInstance().setActive(true)
-                
-                let audioPlayer = try AVAudioPlayer(data: audioData)
-                self.audioPlayer = audioPlayer
-                audioPlayer.delegate = self
-                audioPlayer.prepareToPlay()
-                audioPlayer.play()
                 
                 // Update button state
                 DispatchQueue.main.async {
@@ -1130,15 +1272,48 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
             print("❌ Failed to configure audio session: \(error)")
         }
     }
+    
+    // Add property to store delegate reference
+    private var speechSynthesizerDelegate: SpeechSynthesizerDelegate?
+    
+    private func setupOfflineIndicator() {
+        // This method is now empty as the offline indicator is set up in setupLanguageIndicator
+    }
+    
+    private func updateOfflineStatus() {
+        let isOnline = isConnectedToInternet()
+        offlineIndicatorView.isHidden = isOnline  // Show icon when offline
+        
+        if !isOnline && !hasShownOfflinePopup {
+            hasShownOfflinePopup = true
+            showAlert(
+                title: "Offline Mode",
+                message: "Your device appears to be offline. Voice synthesis will use Apple's built-in voice until connection is restored."
+            )
+        }
+    }
+    
+    // Add property to store current synthesizer
+    private var currentSynthesizer: AVSpeechSynthesizer?
 }
 
 // MARK: - SpeechSynthesizerDelegate
 class SpeechSynthesizerDelegate: NSObject, AVSpeechSynthesizerDelegate {
-    private let completion: () -> Void
-    init(completion: @escaping () -> Void) { self.completion = completion }
+    private let didStart: () -> Void
+    private let didFinish: () -> Void
+    
+    init(didStart: @escaping () -> Void, didFinish: @escaping () -> Void) {
+        self.didStart = didStart
+        self.didFinish = didFinish
+        super.init()
+    }
+    
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
+        didStart()
+    }
     
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-        completion()
+        didFinish()
     }
 }
 
