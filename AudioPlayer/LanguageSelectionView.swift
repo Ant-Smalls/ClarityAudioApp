@@ -20,6 +20,16 @@ struct AnimatedButtonStyle: ButtonStyle {
     }
 }
 
+// Add this custom divider view at the top level of the file, after the AnimatedButtonStyle
+struct CustomDivider: View {
+    var body: some View {
+        Rectangle()
+            .fill(Color.white.opacity(0.2))
+            .frame(height: 1)
+            .padding(.vertical, 8)
+    }
+}
+
 struct LanguageSelectionView: View {
     @State private var inputLanguage: String = ""
     @State private var outputLanguage: String = ""
@@ -75,7 +85,13 @@ struct LanguageSelectionView: View {
     }
 
     var voiceSelectionSection: some View {
-        Section(header: Text("Voice Selection")) {
+        Section(header: 
+            Text("Voice Selection")
+                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .foregroundColor(.white)
+                .multilineTextAlignment(.center)
+                .padding(.bottom, 8)
+        ) {
             Picker("Voice", selection: $selectedGender) {
                 Text("Male").tag("male")
                 Text("Female").tag("female")
@@ -141,14 +157,15 @@ struct LanguageSelectionView: View {
                     Image("AppLogo")
                         .resizable()
                         .scaledToFit()
-                        .frame(width: 250, height: 250)
+                        .frame(width: 280, height: 280)
                     
                     // Title text directly after logo
                     Text("Select Languages")
                         .font(.system(size: 24, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
                         .multilineTextAlignment(.center)
-                        .padding(.bottom, 8)
+                        .padding(.top, -50)
+                        .padding(.bottom, 0)
                     
                     // Language Detection Toggle with updated color
                     HStack {
@@ -167,10 +184,12 @@ struct LanguageSelectionView: View {
                                     userInfo: ["isEnabled": newValue]
                                 )
                             }
-                            .toggleStyle(SwitchToggleStyle(tint: Color(hex: "#FFFF80"))) // Brighter blue color
+                            .toggleStyle(SwitchToggleStyle(tint: Color(hex: "#FFFF80")))
                     }
                     .padding()
                     .background(Color.white.opacity(0.1))
+                    .frame(maxWidth: .infinity)
+                    .background(Color(hex: "#40607e").opacity(0.3))
                     .cornerRadius(8)
                     
                     // Input Language Menu
@@ -245,7 +264,15 @@ struct LanguageSelectionView: View {
                         .cornerRadius(8)
                     }
                     
+                    CustomDivider()
+                        .padding(.vertical, 2)
+
+                    
                     voiceSelectionSection
+                    
+                    CustomDivider()
+                        .padding(.vertical, 2)
+
                     
                     // Clone Voice Button
                     Button(action: {
@@ -257,7 +284,7 @@ struct LanguageSelectionView: View {
                         }
                     }
                     .buttonStyle(AnimatedButtonStyle())
-                    .padding(.top, 8)
+                    .padding(.top, 4)
                     
                     // Language List Button
                     Button(action: { showingLanguageList = true }) {
