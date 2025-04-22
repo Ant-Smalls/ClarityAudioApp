@@ -7,6 +7,10 @@ struct VoiceCloneWizardView: View {
     @State private var voiceIdInput: String = ""
     @State private var showNamePrompt = false
     @State private var voiceName: String = ""
+    @Environment(\.dismiss) var dismiss
+    @State private var apiKey = ""
+    @State private var showingApiKeySection = false
+    @State private var showingApiKeyAlert = false
     
     var body: some View {
         NavigationView {
@@ -22,6 +26,37 @@ struct VoiceCloneWizardView: View {
                     .multilineTextAlignment(.center)
                     .foregroundColor(.secondary)
                     .padding(.horizontal)
+                
+                // API Key Section
+                Section(header: Text("API Key")) {
+                    if let currentApiKey = APIKeyManager.shared.getElevenLabsApiKey() {
+                        HStack {
+                            Text("API Key: ").foregroundColor(.gray)
+                            Text("•••••" + String(currentApiKey.suffix(4)))
+                            Spacer()
+                            Button("Change") {
+                                apiKey = currentApiKey
+                                showingApiKeySection = true
+                            }
+                        }
+                    } else {
+                        Button("Set API Key") {
+                            showingApiKeySection = true
+                        }
+                    }
+                }
+                
+                if showingApiKeySection {
+                    Section {
+                        SecureField("Enter ElevenLabs API Key", text: $apiKey)
+                        Button("Save API Key") {
+                            APIKeyManager.shared.setElevenLabsApiKey(apiKey)
+                            showingApiKeySection = false
+                            showingApiKeyAlert = true
+                        }
+                        .disabled(apiKey.isEmpty)
+                    }
+                }
                 
                 // Option 1: Enter Voice ID
                 VStack(alignment: .leading, spacing: 12) {
@@ -92,20 +127,37 @@ struct VoiceCloneWizardView: View {
                     Text("Create a new voice clone on ElevenLabs. You'll need to record a 2-minute voice sample.")
                         .foregroundColor(.secondary)
                     
-                    Button(action: {
-                        viewModel.openElevenLabsCloning()
-                    }) {
-                        HStack {
-                            Image(systemName: "link")
-                            Text("Open Voice Lab")
+                    VStack(alignment: .leading, spacing: 8) {
+                        Button(action: {
+                            viewModel.openElevenLabsCloning()
+                        }) {
+                            HStack {
+                                Image(systemName: "link")
+                                Text("Open Voice Lab")
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.green)
+                            .foregroundColor(.white)
+                            .cornerRadius(10)
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.green)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
+                        .disabled(viewModel.isSaving)
+                        
+                        if !showingApiKeySection {
+                            Button(action: {
+                                viewModel.openApiKeyInstructions()
+                            }) {
+                                HStack {
+                                    Image(systemName: "key.fill")
+                                    Text("How to find your API key")
+                                    Spacer()
+                                    Image(systemName: "arrow.up.right.square")
+                                }
+                                .foregroundColor(.blue)
+                            }
+                            .padding(.top, 4)
+                        }
                     }
-                    .disabled(viewModel.isSaving)
                 }
                 .padding()
                 .background(Color(.systemGray6))
@@ -120,6 +172,7 @@ struct VoiceCloneWizardView: View {
                 }
                 .disabled(viewModel.isSaving)
             )
+            .navigationTitle("Voice Clone Setup")
         }
         .alert("Name Your Voice", isPresented: $showNamePrompt) {
             TextField("Voice Name", text: $voiceName)
@@ -139,6 +192,11 @@ struct VoiceCloneWizardView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(viewModel.alertMessage)
+        }
+        .alert("API Key Saved", isPresented: $showingApiKeyAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("Your ElevenLabs API key has been saved successfully.")
         }
     }
     
@@ -260,9 +318,16 @@ class VoiceCloneWizardViewModel: NSObject, ObservableObject, AVAudioPlayerDelega
         }
         
         do {
-            // Configure audio session before playback
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
-            try AVAudioSession.sharedInstance().setActive(true)
+            // First stop any existing playback
+            audioPlayer?.stop()
+            
+            // Deactivate current session before changing configuration
+            try AVAudioSession.sharedInstance().setActive(false)
+            
+            // Configure audio session for playback
+            let audioSession = AVAudioSession.sharedInstance()
+            try audioSession.setCategory(.playback, mode: .default)
+            try audioSession.setActive(true)
             
             // Use a sample text for preview
             let sampleText = "Hello! This is a preview of your selected voice."
@@ -272,6 +337,7 @@ class VoiceCloneWizardViewModel: NSObject, ObservableObject, AVAudioPlayerDelega
             let player = try AVAudioPlayer(data: audioData)
             self.audioPlayer = player
             player.delegate = self
+            player.volume = 1.0
             player.prepareToPlay()
             player.play()
             
@@ -301,7 +367,7 @@ class VoiceCloneWizardViewModel: NSObject, ObservableObject, AVAudioPlayerDelega
     func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
         DispatchQueue.main.async {
             self.isPreviewPlaying = false
-            // Clean up audio session after playback
+            // Deactivate audio session after playback
             try? AVAudioSession.sharedInstance().setActive(false)
         }
     }
@@ -312,8 +378,14 @@ class VoiceCloneWizardViewModel: NSObject, ObservableObject, AVAudioPlayerDelega
             if let error = error {
                 self.showAlert(message: "Error playing preview: \(error.localizedDescription)")
             }
-            // Clean up audio session on error
+            // Deactivate audio session on error
             try? AVAudioSession.sharedInstance().setActive(false)
+        }
+    }
+    
+    func openApiKeyInstructions() {
+        if let url = URL(string: "https://docs.elevenlabs.io/api-reference/quick-start/authentication") {
+            UIApplication.shared.open(url)
         }
     }
 }

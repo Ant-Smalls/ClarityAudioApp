@@ -452,24 +452,14 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
                 audioEngine.inputNode.removeTap(onBus: 0)
             }
             
-            // Reset audio session
-            do {
-                try AVAudioSession.sharedInstance().setActive(false)
-                try AVAudioSession.sharedInstance().setCategory(.playAndRecord, 
-                    mode: .measurement,
-                    options: [.allowBluetooth, .allowBluetoothA2DP, .defaultToSpeaker])
-                try AVAudioSession.sharedInstance().setActive(true)
-            } catch {
-                print("❌ Failed to reset audio session: \(error)")
-                return
-            }
+            // Configure audio session for recording
+            configureAudioSession(for: "recording")
             
             startRealTimeTranscription()
             recordingStartTime = Date()
             UIView.animate(withDuration: 0.3) {
                 self.recordButton.alpha = 0
                 self.stopRecordButton.alpha = 1
-                // Hide both buttons during recording
                 self.saveRecordingButton.isHidden = true
                 self.playTranslationButton.isHidden = true
             }
@@ -491,6 +481,9 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
         self.audioEngine.inputNode.removeTap(onBus: 0)
         self.audioEngine.stop()
         self.speechRecognizer = nil
+        
+        // Configure audio session for playback
+        configureAudioSession(for: "playback")
         
         let finalText = self.transcriptionTextView.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         
@@ -732,13 +725,13 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
                 try audioData.write(to: fileURL)
                 self.elevenLabsAudioFileURL = fileURL
                 
-                // Play the audio automatically
-                try AVAudioSession.sharedInstance().setCategory(.playback)
-                try AVAudioSession.sharedInstance().setActive(true)
+                // Configure audio session for playback
+                configureAudioSession(for: "playback")
                 
                 let audioPlayer = try AVAudioPlayer(data: audioData)
                 self.audioPlayer = audioPlayer
                 audioPlayer.delegate = self
+                audioPlayer.volume = 1.0
                 audioPlayer.prepareToPlay()
                 audioPlayer.play()
                 
@@ -1108,6 +1101,33 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
             if !isEnabled {
                 detectionStatusLabel.isHidden = true
             }
+        }
+    }
+    
+    private func configureAudioSession(for mode: String) {
+        do {
+            let audioSession = AVAudioSession.sharedInstance()
+            
+            // First deactivate the current session
+            try audioSession.setActive(false)
+            
+            switch mode {
+            case "recording":
+                try audioSession.setCategory(.playAndRecord, mode: .measurement, options: [.allowBluetooth, .defaultToSpeaker])
+            case "playback":
+                try audioSession.setCategory(.playback, mode: .spokenAudio, options: [.defaultToSpeaker])
+            default:
+                try audioSession.setCategory(.playback, mode: .default)
+            }
+            
+            // Set preferred settings
+            try audioSession.setPreferredSampleRate(44100.0)
+            try audioSession.setPreferredIOBufferDuration(0.005)
+            
+            // Activate the session with the new configuration
+            try audioSession.setActive(true)
+        } catch {
+            print("❌ Failed to configure audio session: \(error)")
         }
     }
 }

@@ -29,7 +29,7 @@ class ElevenLabsService {
             finalVoiceId = voiceId
         }
         
-        let apiKey = APIConfig.elevenLabsAPIKey
+        let apiKey = APIConfig.elevenLabsApiKey
         let endpoint = "\(APIConfig.elevenLabsBaseURL)/\(finalVoiceId)"
         
         guard let url = URL(string: endpoint) else {
@@ -71,7 +71,7 @@ class ElevenLabsService {
     
     // Optional: Add method to verify voice ID
     func verifyVoiceId(_ voiceId: String) async throws -> Bool {
-        let apiKey = APIConfig.elevenLabsAPIKey
+        let apiKey = APIConfig.elevenLabsApiKey
         let endpoint = "https://api.elevenlabs.io/v1/voices/\(voiceId)"
         
         guard let url = URL(string: endpoint) else {
