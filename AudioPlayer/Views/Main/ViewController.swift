@@ -12,6 +12,7 @@ import SwiftUI
 import Foundation
 import Network
 import Network
+import MediaPlayer
 
 class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlayerDelegate {
     
@@ -124,6 +125,7 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
     // Add property for language detection state
     private var isLanguageDetectionEnabled: Bool = UserDefaults.standard.bool(forKey: "isLanguageDetectionEnabled")
     
+    
     // Add properties after other UI element properties
     private var offlineIndicatorView: UIImageView!
     private var hasShownOfflinePopup = false
@@ -134,6 +136,9 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
     @IBOutlet weak var transcriptionTextView: UITextView!
     @IBOutlet weak var translationTextView: UITextView!
     @IBOutlet weak var playTranslatedAudioButton: UIButton!
+    
+    // Silent player maintains control over Bluetooth media controls.
+    var silentPlayer: AVAudioPlayer?
     
     // Remove IBOutlet and make it a regular property
     private var saveRecordingButton: UIButton!
@@ -155,6 +160,41 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
         stopRecordButton.alpha = 0
         saveRecordingButton.isHidden = true
         playTranslatedAudioButton.isHidden = true
+        
+        // Setup Bluetooth remote control integration
+           let commandCenter = MPRemoteCommandCenter.shared()
+           commandCenter.togglePlayPauseCommand.isEnabled = true
+           commandCenter.togglePlayPauseCommand.addTarget { event in
+               print("⏯ MPRemoteCommandCenter togglePlayPause received")
+               DispatchQueue.main.async {
+                   if self.audioEngine.isRunning {
+                       self.handleStopRecording()
+                   } else {
+                       self.handleRecord()
+                   }
+               }
+               return .success
+           }
+           
+           commandCenter.playCommand.isEnabled = true
+           commandCenter.playCommand.addTarget { event in
+               print("▶️ MPRemoteCommandCenter playCommand received")
+                   DispatchQueue.main.async {
+                       if self.audioEngine.isRunning {
+                           self.handleStopRecording()
+                       } else {
+                           self.handleRecord()
+                       }
+                   }
+                   return .success
+           }
+
+           commandCenter.pauseCommand.isEnabled = true
+           commandCenter.pauseCommand.addTarget { event in
+               print("⏸ MPRemoteCommandCenter pauseCommand received")
+               DispatchQueue.main.async { self.handleStopRecording() }
+               return .success
+           }
         
         print("✅ Using Input Language: \(inputLanguage), Output Language: \(outputLanguage)")
         
@@ -188,12 +228,24 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        UIApplication.shared.beginReceivingRemoteControlEvents()
+        self.becomeFirstResponder()
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            print("🎯 Is first responder?", self.isFirstResponder ? "YES" : "NO")
+        }
+        startSilentPlayback()
         print("✅ ViewController appeared successfully!")
     }
     
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         print("⚠️ ViewController is disappearing, cleaning up translation tasks.")
+        MPRemoteCommandCenter.shared().togglePlayPauseCommand.removeTarget(nil)
+        UIApplication.shared.endReceivingRemoteControlEvents()
+        self.resignFirstResponder()
+        silentPlayer?.stop()
+        print("🛑 Silent playback stopped (view disappeared).")
         
         // Remove any embedded SwiftUI TranslationView.
         for child in children {
@@ -204,6 +256,10 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
             }
         }
         self.finalTranslatedText = ""
+    }
+    
+    override var canBecomeFirstResponder: Bool {
+        return true
     }
     
     // MARK: - Gradient Background Setup
@@ -451,19 +507,64 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
         }
     }
     
-    func setupAudioSession() {
-        let session = AVAudioSession.sharedInstance()
-        do {
-            try session.setCategory(.playAndRecord, mode: .default, options: [.allowBluetooth, .allowBluetoothA2DP])
-            try session.setActive(true)
-        } catch {
-            print("❌ Failed to setup audio session: \(error)")
+    // Sets up the audio session for recording and playback with Bluetooth support.
+     func setupAudioSession() {
+         let session = AVAudioSession.sharedInstance()
+         do {
+             try session.setCategory(.playAndRecord, mode: .moviePlayback, options: [.allowBluetooth, .allowBluetoothA2DP, .mixWithOthers, .duckOthers])
+             if let inputs = AVAudioSession.sharedInstance().availableInputs {
+                 print("🎙 Inputs AFTER setting .playAndRecord mode:")
+                 for input in inputs {
+                     print(" - \(input.portType.rawValue): \(input.portName)")
+                 }
+             }
+
+             try session.setActive(true)
+             let isOtherAudioPlaying = AVAudioSession.sharedInstance().isOtherAudioPlaying
+             print("🎚 AVAudioSession active. Is other audio playing? \(isOtherAudioPlaying ? "YES" : "NO")")
+
+         } catch {
+             print("❌ Failed to setup audio session: \(error)")
+         }
+     }
+    
+    
+    // Begins silent audio playback to maintain control over Bluetooth accessories.
+        func startSilentPlayback() {
+            guard let silenceURL = Bundle.main.url(forResource: "silence", withExtension: "mp3") else {
+                print("❌ Missing silence.mp3 in bundle.")
+                return
+            }
+            
+            do {
+                silentPlayer = try AVAudioPlayer(contentsOf: silenceURL)
+                silentPlayer?.numberOfLoops = -1
+                silentPlayer?.volume = 0.01
+                silentPlayer?.prepareToPlay()
+                silentPlayer?.play()
+                if let player = silentPlayer {
+                    print("🎧 Silent player state:")
+                    print(" - isPlaying:", player.isPlaying)
+                    print(" - duration:", player.duration)
+                    print(" - volume:", player.volume)
+                    print(" - currentTime:", player.currentTime)
+                } else {
+                    print("❌ silentPlayer is nil after attempt to play.")
+                }
+                print("🔈 Started silent audio playback to claim media button control.")
+            } catch {
+                print("❌ Could not start silent audio playback:", error)
+            }
         }
-    }
+
+
     
     // MARK: - Recording Actions
     @IBAction func handleRecord() {
         if !audioEngine.isRunning {
+            // Configure audio session for recording
+            configureAudioSession(for: "recording")
+            
             // Clear text views before starting new recording
             transcriptionTextView.text = ""
             translationTextView.text = ""
@@ -477,8 +578,6 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
                 audioEngine.inputNode.removeTap(onBus: 0)
             }
             
-            // Configure audio session for recording
-            configureAudioSession(for: "recording")
             
             startRealTimeTranscription()
             recordingStartTime = Date()
@@ -577,18 +676,23 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
         }
         recognitionRequest.shouldReportPartialResults = true
         
-        // Configure audio session
+        
         let inputNode = audioEngine.inputNode
-        let recordingFormat = inputNode.outputFormat(forBus: 0)
+          inputNode.removeTap(onBus: 0)
+          
+          inputNode.installTap(onBus: 0, bufferSize: 1024, format: inputNode.outputFormat(forBus: 0)) { buffer, when in
+              self.recognitionRequest?.append(buffer)
+          }
+          
+          audioEngine.prepare()
+          do {
+              try audioEngine.start()
+              print("🎤 Audio engine started for transcription.")
+          } catch {
+              print("❌ Failed to start audio engine:", error)
+          }
+    
         
-        // Install tap on input node
-        inputNode.installTap(onBus: 0,
-                           bufferSize: 1024,
-                           format: recordingFormat) { (buffer: AVAudioPCMBuffer, when: AVAudioTime) in
-            self.recognitionRequest?.append(buffer)
-        }
-        
-        // Start recognition task
         recognitionTask = speechRecognizer.recognitionTask(with: recognitionRequest) { [weak self] result, error in
             guard let self = self else { return }
             
@@ -792,8 +896,6 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
                     // Offline mode: Use AVSpeechSynthesizer
                     print("📢 Using offline speech synthesis")
                     
-                    // Configure audio session for playback
-                    configureAudioSession(for: "playback")
                     
                     let synthesizer = AVSpeechSynthesizer()
                     let utterance = AVSpeechUtterance(string: text)
@@ -834,7 +936,13 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
                     // Save a reference to the synthesizer to prevent deallocation
                     self.currentSynthesizer = synthesizer
                     
+                    //Switch back to be able to play audio
+                    AudioUtils.switchAudioMode(toPlayback: true)
+                    
                     synthesizer.speak(utterance)
+                    
+                    // Configure audio session for playback
+                    configureAudioSession(for: "")
                 }
                 
                 // Update button state immediately after initiating synthesis
@@ -904,8 +1012,6 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
                     // Offline mode: Use AVSpeechSynthesizer
                     print("📢 Using offline speech synthesis for playback")
                     
-                    configureAudioSession(for: "playback")
-                    
                     let synthesizer = AVSpeechSynthesizer()
                     let utterance = AVSpeechUtterance(string: finalTranslatedText)
                     
@@ -939,6 +1045,10 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
                     self.currentSynthesizer = synthesizer
                     
                     synthesizer.speak(utterance)
+                    
+                    configureAudioSession(for: "")
+                    
+                    
                 }
                 
                 // Update button state
@@ -1255,11 +1365,11 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
             
             switch mode {
             case "recording":
-                try audioSession.setCategory(.playAndRecord, mode: .measurement, options: [.allowBluetooth, .defaultToSpeaker])
+                try audioSession.setCategory(.playAndRecord, mode: .moviePlayback, options: [.allowBluetooth])
             case "playback":
-                try audioSession.setCategory(.playback, mode: .spokenAudio, options: [.defaultToSpeaker])
+                try audioSession.setCategory(.playback, mode: .default, options: [.allowBluetoothA2DP])
             default:
-                try audioSession.setCategory(.playback, mode: .default)
+                try audioSession.setCategory(.playAndRecord, mode: .moviePlayback, options: [.allowBluetooth,.allowBluetoothA2DP, .duckOthers, .mixWithOthers])
             }
             
             // Set preferred settings
@@ -1296,6 +1406,29 @@ class ViewController: UIViewController, SFSpeechRecognizerDelegate, AVAudioPlaye
     // Add property to store current synthesizer
     private var currentSynthesizer: AVSpeechSynthesizer?
 }
+
+
+
+// Switches between .playback and .playAndRecord audio modes depending on use case.
+class AudioUtils {
+    static func switchAudioMode(toPlayback: Bool) {
+        let audioSession = AVAudioSession.sharedInstance()
+        do {
+            if toPlayback {
+                try audioSession.setCategory(.playback, mode: .default, options: [.allowBluetoothA2DP])
+                print("🔊 Switched to .playback mode for audio output.")
+            } else {
+                try audioSession.setCategory(.playAndRecord, mode: .moviePlayback, options: [.allowBluetooth, .allowBluetoothA2DP, .duckOthers, .mixWithOthers])
+                print("🎤 Switched back to .playAndRecord mode for transcription + control.")
+            }
+            try audioSession.setActive(true)
+        } catch {
+            print("❌ Failed to switch audio mode:", error)
+        }
+    }
+}
+
+
 
 // MARK: - SpeechSynthesizerDelegate
 class SpeechSynthesizerDelegate: NSObject, AVSpeechSynthesizerDelegate {
