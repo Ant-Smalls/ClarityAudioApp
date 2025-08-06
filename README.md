@@ -4,12 +4,14 @@
   <img src="AudioPlayer/Assets.xcassets/AppLogo.imageset/AppLogo.png" width="120" alt="Clarity Logo">
 </div>
 
-Clarity is an elegant iOS application that breaks down language barriers through real-time speech translation. With support for multiple languages, offline capabilities, and high-quality voice synthesis, Clarity makes cross-language communication effortless.
+Clarity is a real-time communication enhancement platform that breaks down language barriers in the most human way possible. Using on-device AI, it instantly transcribes speech, translates in real-time, and speaks back in your own voice — making communication seamless for anyone facing language barriers or speech challenges.
+
+Think of it as a personal interpreter that works anywhere, even offline. Whether you're in a hospital room with a CPAP mask or traveling through rural Japan without service, Clarity ensures you're understood. With features like automatic language detection, voice cloning, and conversation history, it's more than a translator — it's a bridge between people.
 
 ## 🔄 Application Workflow
 
 <div align="center">
-  <img src=".github/assets/workflow-diagram.png" width="800" style="max-width: 100%;" alt="Clarity Application Workflow">
+  <img src="docs/images/workflow.png" width="800" style="max-width: 100%;" alt="Clarity Application Workflow">
 </div>
 
 Our streamlined workflow makes translation effortless:
@@ -30,20 +32,39 @@ Here's Clarity in action:
 <div align="center">
   <table>
     <tr>
-      <td align="center">
+      <td align="center" width="33%">
         <strong>Language Selection</strong><br>
-        <img src=".github/assets/language-selection.png" width="250" alt="Language Selection Interface"><br>
+        <img src="docs/images/landing_screen-selection.png" width="250" alt="Language Selection Interface"><br>
         Auto-detection & voice options
       </td>
-      <td align="center">
+      <td align="center" width="33%">
         <strong>Recording Interface</strong><br>
-        <img src=".github/assets/recording-screen.png" width="250" alt="Recording Interface"><br>
+        <img src="docs/images/record_screen-pre-recording.png" width="250" alt="Recording Interface"><br>
         Real-time transcription & translation
       </td>
-      <td align="center">
+      <td align="center" width="33%">
         <strong>Voice Selection</strong><br>
-        <img src=".github/assets/voice-selection.png" width="250" alt="Voice Selection Interface"><br>
+        <img src="docs/images/voice_clone_screen.png" width="250" alt="Voice Selection Interface"><br>
         Customize voice output
+      </td>
+    </tr>
+  </table>
+</div>
+
+### Additional Features
+
+<div align="center">
+  <table>
+    <tr>
+      <td align="center" width="50%">
+        <strong>Post-Recording View</strong><br>
+        <img src="docs/images/record_screen_post-recording.png" width="250" alt="Post Recording Interface"><br>
+        Review and playback translations
+      </td>
+      <td align="center" width="50%">
+        <strong>Library</strong><br>
+        <img src="docs/images/library_page.png" width="250" alt="Library Interface"><br>
+        Access saved conversations
       </td>
     </tr>
   </table>
