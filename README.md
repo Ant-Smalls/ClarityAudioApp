@@ -1,16 +1,16 @@
 # Clarity
 
-<p align="center">
+<div align="center">
   <img src="AudioPlayer/Assets.xcassets/AppLogo.imageset/AppLogo.png" width="120" alt="Clarity Logo">
-</p>
+</div>
 
 Clarity is an elegant iOS application that breaks down language barriers through real-time speech translation. With support for multiple languages, offline capabilities, and high-quality voice synthesis, Clarity makes cross-language communication effortless.
 
 ## 🔄 Application Workflow
 
-<p align="center">
-  <img src="docs/images/workflow-diagram.png" alt="Clarity Application Workflow" width="100%">
-</p>
+<div align="center">
+  <img src=".github/assets/workflow-diagram.png" width="800" style="max-width: 100%;" alt="Clarity Application Workflow">
+</div>
 
 Our streamlined workflow makes translation effortless:
 
@@ -27,34 +27,43 @@ Our streamlined workflow makes translation effortless:
 
 Here's Clarity in action:
 
-### Language Selection & Auto-Detection
-<p align="center">
-  <img src="docs/images/language-selection-example.png" alt="Language Selection Interface" width="300">
-</p>
+<div align="center">
+  <table>
+    <tr>
+      <td align="center">
+        <strong>Language Selection</strong><br>
+        <img src=".github/assets/language-selection.png" width="250" alt="Language Selection Interface"><br>
+        Auto-detection & voice options
+      </td>
+      <td align="center">
+        <strong>Recording Interface</strong><br>
+        <img src=".github/assets/recording-screen.png" width="250" alt="Recording Interface"><br>
+        Real-time transcription & translation
+      </td>
+      <td align="center">
+        <strong>Voice Selection</strong><br>
+        <img src=".github/assets/voice-selection.png" width="250" alt="Voice Selection Interface"><br>
+        Customize voice output
+      </td>
+    </tr>
+  </table>
+</div>
 
-The language selection interface features:
+### Key Interface Features
+
+#### Language Selection
 - Toggle for automatic language detection
 - Clear language selection dropdown
 - Voice gender options (Male/Female/Custom)
 - Option to clone your own voice
 
-### Recording & Translation
-<p align="center">
-  <img src="docs/images/recording-interface.png" alt="Recording and Translation Interface" width="300">
-</p>
-
-The recording interface shows:
+#### Recording & Translation
 - Real-time transcription window
 - Live translation display
 - Simple recording controls
 - Clear audio input visualization
 
-### Voice Customization
-<p align="center">
-  <img src="docs/images/voice-customization.png" alt="Voice Customization Options" width="300">
-</p>
-
-Voice features include:
+#### Voice Customization
 - Multiple voice options per language
 - Gender selection
 - Custom voice cloning
@@ -204,6 +213,39 @@ Clarity respects your privacy:
 - Voice Synthesis: <2s
 - Auto-Detection: <300ms
 
+## 🏥 Real-World Impact: Healthcare Communication
+
+### Breaking Language Barriers in Critical Care
+
+<div align="center">
+  <img src=".github/assets/medical-use-case.png" width="800" style="max-width: 100%;" alt="Medical Use Case Diagram">
+</div>
+
+#### The Challenge
+A Spanish-speaking patient in Hartford Hospital's ICU needs to communicate vital information to English-speaking medical staff while wearing a CPAP mask. Traditional translation methods are slow and impersonal, potentially delaying critical care.
+
+#### Clarity Solution
+1. **Integrated Input**: Patient speaks into a microphone attached to their CPAP mask
+2. **Real-Time Processing**:
+   - Spanish speech is instantly transcribed
+   - Text is accurately translated to English
+   - Translation is voiced in patient's own cloned voice
+3. **Clear Communication**: Medical staff hear the patient's concerns in clear English, maintaining the patient's own voice
+4. **Documentation**: All interactions are saved for:
+   - Medical records
+   - Treatment history
+   - Care analysis
+   - Family updates
+
+#### Benefits
+- **Immediate Communication**: No waiting for translators
+- **Personal Connection**: Patient's voice is preserved
+- **Medical Accuracy**: Clear, precise translations of symptoms and concerns
+- **Documentation**: Complete record of patient-staff communication
+- **Reduced Anxiety**: Patients can express themselves naturally
+- **Better Care**: Staff can respond quickly to patient needs
+
+This real-world application demonstrates how Clarity breaks down language barriers in critical healthcare situations, potentially improving patient outcomes through better communication.
 
 ## 📄 License
 
