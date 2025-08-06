@@ -1,111 +1,75 @@
-🎙️ Real-Time Speech Translation App
+# Clarity
 
-An iOS application that enables real-time speech transcription, translation, and text-to-speech playback using Apple's Speech, Translation, and AVFoundation frameworks. Supports multiple languages and Bluetooth speaker connectivity.
+<p align="center">
+  <img src="AudioPlayer/Assets.xcassets/AppIcon.appiconset/1024.png" width="120" alt="Clarity Logo">
+</p>
 
-📌 Features
+Clarity is an elegant iOS application that breaks down language barriers through real-time speech translation. With support for multiple languages, offline capabilities, and high-quality voice synthesis, Clarity makes cross-language communication effortless.
 
-✅ Real-time speech transcription using Apple's Speech API
-✅ Instant translation into a selected target language
-✅ Text-to-Speech (TTS) playback of the translated text
-✅ Bluetooth speaker support for translated audio
-✅ Offline language translation support (when languages are downloaded)
+## ✨ Key Features
 
-🚀 Installation & Setup
+- **Real-Time Speech Recognition** - Instantly transcribe spoken words with high accuracy
+- **Live Translation** - Seamless translation between multiple languages
+- **Natural Voice Synthesis** - High-quality voice output in the target language
+- **Offline Support** - Full functionality without internet connection
+- **Language Auto-Detection** - Automatically identifies the spoken language
+- **Library Storage** - Save and organize your translations for future reference
+- **Gender Selection** - Choose between male and female voices for playback
+- **Modern UI** - Clean, intuitive interface with smooth animations
 
-Follow these steps to set up the project on your Mac and run it on your iPhone.
+## 🌍 Supported Languages
 
-🔹 1. Prerequisites
+- English
+- Spanish
+- German
+- Portuguese
+- Japanese
+- French
+- Italian
+- Russian
+- Korean
 
-Ensure you have the following installed on your Mac:
-macOS Monterey (or later)
-Xcode 15 (or later)
-An Apple Developer Account (needed to run on a physical device)
-A physical iPhone (Real-time speech recognition does not work in the simulator)
+## 📱 Requirements
 
-🔹 2. Clone the Repository
+- iOS 15.0 or later
+- iPhone or iPad
+- Microphone access for speech recognition
+- Internet connection for optimal performance (optional)
 
-Open Terminal and run:
-git clone https://github.com/Ant-Smalls/ClarityAudioApp.git
-cd AudioPlayer
+## 🚀 Getting Started
 
-🔹 3. Open in Xcode
+1. **Download & Install**
+   - Download Clarity from the App Store
+   - Grant necessary permissions when prompted (microphone, speech recognition)
 
-Open Xcode
-Click File > Open, then select the project folder
-Open AudioPlayer.xcodeproj
+2. **First Use**
+   - Select your preferred input and output languages
+   - Choose your preferred voice gender
+   - Start recording with a single tap
 
-🔹 4. Link Your Apple Developer Account
+3. **Using Clarity**
+   - Tap the microphone button to start recording
+   - Speak clearly into your device
+   - Watch as your speech is transcribed and translated in real-time
+   - Tap the stop button when finished
+   - Play back the translation in a natural-sounding voice
+   - Save important translations to your library
 
-In Xcode, go to Signing & Capabilities
-Select your team under "Signing"
-Ensure "Automatically manage signing" is enabled
-If prompted, sign into your Apple Developer Account
+## 💡 Pro Tips
 
-🔹 5. Enable Required Permissions
+- **Offline Mode**: Download language packs in Settings for offline use
+- **Quick Switch**: Use the language swap button to quickly reverse translation direction
+- **Voice Customization**: Switch between male and female voices for each language
+- **Library Organization**: Save and categorize your most-used translations
 
-This app requires Microphone, Speech Recognition, and Bluetooth permissions.
-Go to Info.plist and add:
-<key>NSSpeechRecognitionUsageDescription</key>
-<string>App requires access to speech recognition for real-time transcription.</string>
+## 🔒 Privacy
 
-<key>NSMicrophoneUsageDescription</key>
-<string>App requires access to the microphone for voice input.</string>
+Clarity respects your privacy:
+- All speech processing is done on-device when possible
+- No recordings are stored without explicit user action
+- Saved translations are stored locally on your device
 
-<key>NSBluetoothAlwaysUsageDescription</key>
-<string>App requires Bluetooth access to connect to external speakers.</string>
 
-🔹 6. Build & Run on Your iPhone
+## 📄 License
 
-** Make Sure you are on Developer Mode (Settings -> Privacy and Security -> Developer Mode) **
-
-Plug in your iPhone
-Select your iPhone as the build target in Xcode
-Click Run (▶️) to install and launch the app
-
-📥 Downloading Offline Language Packs
-
-To use offline translation, download the required language packs:
-Go to Settings → Apps → Translate -> Downloaded languages
-
-Tap install:
-English (en)
-Spanish (es)
-German (de)
-Portuguese (Brazil) (pt-BR)
-Japanese (ja)
-
-Restart your iPhone to ensure the system registers them.
-
-🔊 Connecting a Bluetooth Speaker
-
-Turn on your Bluetooth speaker
-Open Settings → Bluetooth
-Pair your iPhone with the speaker
-Open the app, and play translated audio — it should now output through your Bluetooth speaker.
-
-📱 Using the App
-
-Open the app
-Select the input & output language
-Tap "Start Record" and start speaking
-Tap "Stop Recording" to finalize transcription & translation
-The translated and input text will be displayed in real time
-Audio will be generated and automatically played 
-
-🛠 Troubleshooting
-
-⚠️ Play Translated Audio Button does NOT work
-
-⚠️ NOT SURE if the audio will play when no speaker is connected to 
-
-⚠️ Online language support is NOT AVAILABLE, has to be downloaded all languages
-
-⚠️ Translation Failed (Offline Models Not Found)
-Ensure the correct language codes are being used (en, es, de, pt, ja)
-Go to App > Translate -> Downloaded languages and check if the language packs are downloaded
-Restart your iPhone after downloading language packs
-
-⚠️ No Sound from Bluetooth Speaker
-Ensure your iPhone is connected to the speaker
-Go to Control Center > Audio Output and select the Bluetooth speaker
-Ensure volume is turned up on both devices
+Clarity is licensed under the MIT License. See the LICENSE file for details.
