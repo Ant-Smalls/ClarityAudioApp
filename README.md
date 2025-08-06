@@ -6,38 +6,59 @@
 
 Clarity is an elegant iOS application that breaks down language barriers through real-time speech translation. With support for multiple languages, offline capabilities, and high-quality voice synthesis, Clarity makes cross-language communication effortless.
 
-## 🔄 How It Works
+## 🔄 Application Workflow
 
 <p align="center">
-  <img src="docs/images/workflow.png" alt="Clarity Application Workflow" width="100%">
+  <img src="docs/images/workflow-diagram.png" alt="Clarity Application Workflow" width="100%">
 </p>
 
-The Clarity workflow is designed to be intuitive and efficient:
+Our streamlined workflow makes translation effortless:
 
-1. **Language Selection**: Choose your input and output languages, with support for auto-detection
-2. **Audio Recording**: Record your speech with a simple tap
-3. **Speech-to-Text**: Advanced transcription converts your speech to text
-4. **Translation**: Text is accurately translated to your target language
-5. **Text Storage**: Translations are saved for reference and audio generation
-6. **Audio Generation**: High-quality voice synthesis in your chosen language
-7. **Voice Customization**: Choose between male, female, or custom voices
-8. **Instant Playback**: Hear your translation immediately
+1. **Choose Input & Output Languages**: Select languages or use auto-detection
+2. **Start Recording Audio**: Begin speaking with a single tap
+3. **Speech-Text Transcription**: Watch your words appear in real-time
+4. **Text-Text Translation**: Instant translation to your target language
+5. **Translated Text Storage**: Save translations for future use
+6. **Stop Recording**: Finish your recording session
+7. **Text-Speech Generation**: Convert text to natural speech
+8. **Immediate Playback**: Listen to your translation instantly
 
-## 📱 Real-World Example
+## 📱 Real-World Usage
 
-Here's how Clarity works in practice:
+Here's Clarity in action:
 
+### Language Selection & Auto-Detection
 <p align="center">
-  <img src="docs/images/language-selection.png" alt="Language Selection Screen" width="280">
-  <img src="docs/images/recording-screen.png" alt="Recording Screen" width="280">
-  <img src="docs/images/voice-selection.png" alt="Voice Selection Screen" width="280">
+  <img src="docs/images/language-selection-example.png" alt="Language Selection Interface" width="300">
 </p>
 
-1. Start by selecting your languages and preferred voice
-2. Record your message with the tap of a button
-3. Watch as your speech is transcribed and translated in real-time
-4. Choose or customize your preferred voice for playback
-5. Listen to the natural-sounding translation
+The language selection interface features:
+- Toggle for automatic language detection
+- Clear language selection dropdown
+- Voice gender options (Male/Female/Custom)
+- Option to clone your own voice
+
+### Recording & Translation
+<p align="center">
+  <img src="docs/images/recording-interface.png" alt="Recording and Translation Interface" width="300">
+</p>
+
+The recording interface shows:
+- Real-time transcription window
+- Live translation display
+- Simple recording controls
+- Clear audio input visualization
+
+### Voice Customization
+<p align="center">
+  <img src="docs/images/voice-customization.png" alt="Voice Customization Options" width="300">
+</p>
+
+Voice features include:
+- Multiple voice options per language
+- Gender selection
+- Custom voice cloning
+- Voice preview capability
 
 ## ✨ Key Features
 
